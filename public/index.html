@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="styles.css">
+    <title>Donation Form</title>
+    <script src="https://js.stripe.com/v3/"></script>
+</head>
+<body>
+
+     <div class="top-logo">
+    <img src="/images/logo.avif" alt="Charity Logo">
+  </div>
+
+      <main class="checkout-container">
+
+
+    <!-- LEFT SIDE -->
+
+    <section class="donation-summary">
+      <h1>Monthly Donation</h1>
+
+      <div class="summary-card">
+
+        <p class="label">Cause</p>
+            <h2 id="cause">Palestine Emergency Aid</h2>
+
+        <p class="label">Donation Amount</p>
+            <h3 id="amount">£25/month</h3>
+
+        <p class="label">Frequency</p>
+            <h3 id="frequency">Monthly</h3>
+
+        <p class="small-text">
+            Your monthly donation helps provide urgent aid to families in need.
+        </p>
+
+      </div>
+
+      <div class="secure-box">
+        <p>🔒 Secure payments powered by Stripe</p>
+      </div>
+
+    </section>
+    <!-- RIGHT SIDE -->
+    <section class="checkout-form">
+      <h2>Donor Information</h2>
+
+      <form>
+
+        <div class="input-group">
+          <label>Full Name</label>
+          <input type="text" id="full-name" placeholder="John Smith" />
+        </div>
+
+        <div class="input-group">
+          <label>Email Address</label>
+          <input type="email" placeholder="john@example.com" />
+        </div>
+
+        <div class="input-group">
+          <label>Phone Number</label>
+          <input type="tel" id="phone" placeholder="+44 7123 456789" />
+        </div>
+
+        <div class="input-group">
+          <label>Address</label>
+          <input type="text" placeholder="123 Example Street" />
+        </div>
+
+        <div class="input-group">
+          <label>Postcode</label>
+          <input type="text" placeholder="SW1A 1AA" />
+        </div>
+
+        <div class="input-group">
+          <label>Country</label>
+          <input type="text" id="country" placeholder="United Kingdom" />
+        </div>
+
+        <!-- STRIPE PLACEHOLDER -->
+
+        <div class="payment-placeholder">
+          <div id="payment-element"></div>
+
+          <button type="button" id="pay-button">
+            Pay Now
+          </button>
+        </div>
+
+        <!-- GIFT AID -->
+
+        <div class="gift-aid">
+          <input type="checkbox" id="gift-aid"/>
+          <label for="giftAid">
+            I am a UK taxpayer and want to claim Gift Aid on this donation.
+          </label>
+        </div>
+
+        <!-- BUTTON -->
+
+        <button type="submit">
+          Continue To Payment
+        </button>
+
+      </form>
+
+    </section>
+
+  </main>
+
+  <script src="main.js"></script>
+</body>
+</html>
