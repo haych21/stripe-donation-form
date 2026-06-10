@@ -88,7 +88,7 @@ const country =
 
   console.log("Selected price ID:", selectedPriceId);
 
-  const res = await fetch("http://localhost:3000/create-subscription", {
+  const res = await fetch("/create-subscription", {
 
     method: "POST",
 
