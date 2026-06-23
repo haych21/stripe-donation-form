@@ -22,15 +22,54 @@
       <h1>Monthly Donation</h1>
 
       <div class="summary-card">
-
         <p class="label">Cause</p>
-            <h2 id="cause">Palestine Emergency Aid</h2>
+
+        <select id="cause-select">
+
+          <option value="Palestine Emergency Aid">
+            Palestine Emergency Aid
+          </option>
+
+          <option value="Clean Water">
+            Clean Water
+          </option>
+
+          <option value="Food Relief">
+            Food Relief
+          </option>
+
+        </select>
 
         <p class="label">Donation Amount</p>
-            <h3 id="amount">£25/month</h3>
+
+        <select id="donation-amount">
+
+          <option value="5">
+            £5
+          </option>
+
+          <option value="10">
+            £10
+          </option>
+
+          <option value="15" selected>
+            £15
+          </option>
+
+        </select>
 
         <p class="label">Frequency</p>
-            <h3 id="frequency">Monthly</h3>
+            <div class="frequency-toggle">
+
+              <button type="button" class="freq-btn active" data-value="monthly">
+                Monthly
+              </button>
+
+              <button type="button" class="freq-btn" data-value="one-time">
+                 One-time
+              </button>
+
+            </div>
 
         <p class="small-text">
             Your monthly donation helps provide urgent aid to families in need.

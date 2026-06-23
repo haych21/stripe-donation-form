@@ -13,42 +13,57 @@ let paymentElement = null;
 // STRIPE PRICE IDS
 // =============================
 const priceMap = {
-  5: "price_1TYqQ7EPmNke8msBIru7huCa",
-  15: "price_1TYqQ7EPmNke8msBVxpmWAKw",
-  30: "price_1TYqQ7EPmNke8msBPi9XurhY",
+  "Palestine Emergency Aid": {
+    5: "price_1TYqQ7EPmNke8msBIru7huCa",
+    10: "price_1Tl8uREPmNke8msBJkAncV2X",
+    15: "price_1TYqQ7EPmNke8msBVxpmWAKw"
+  },
+
+  "Clean Water": {
+    5: "price_1Tl8vmEPmNke8msBOqrwefCk",
+    10: "price_1Tl8w9EPmNke8msBi7uBQ5GH",
+    15: "price_1Tl8w9EPmNke8msBYCNNA0yo"
+  },
+
+  "Food Relief": {
+    5: "price_1Tl8yvEPmNke8msBWW6MHIGW",
+    10: "price_1Tl8yvEPmNke8msBhe56PkY4",
+    15: "price_1Tl8yvEPmNke8msBAxQjTEVw"
+  }
 };
 
 
 // =============================
-// GET DATA
+// GET ELEMENTS
 // =============================
-const params = new URLSearchParams(window.location.search);
+const causeSelect = document.getElementById("cause-select");
+const amountSelect = document.getElementById("donation-amount");
 
-const cause = params.get("cause") || "Palestine Emergency Aid";
-
-// CHANGE THIS TO TEST DIFFERENT PLANS
-const urlAmount = Number(params.get("amount")) || 15;
-
-const frequency = "monthly";
-
-console.log("Amount:", urlAmount);
+const form = document.querySelector("form");
+const inputs = document.querySelectorAll("input");
 
 
 // =============================
-// UPDATE UI
+// FREQUENCY TOGGLE
 // =============================
-document.getElementById("cause").textContent = cause;
+let frequency = "monthly";
 
-document.getElementById("amount").textContent = `£${urlAmount}`;
+const freqButtons = document.querySelectorAll(".freq-btn");
 
-document.getElementById("frequency").textContent = "Monthly";
+freqButtons.forEach(btn => {
+  btn.addEventListener("click", () => {
+    freqButtons.forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+
+    frequency = btn.dataset.value;
+    console.log("Selected frequency:", frequency);
+  });
+});
 
 
 // =============================
 // INPUT RESET
 // =============================
-const inputs = document.querySelectorAll("input");
-
 inputs.forEach((input) => {
   input.addEventListener("input", () => {
     input.classList.remove("input-error");
@@ -57,36 +72,44 @@ inputs.forEach((input) => {
 
 
 // =============================
-// FORM
-// =============================
-const form = document.querySelector("form");
-
-
-// =============================
 // SETUP STRIPE
 // =============================
 async function setupStripe() {
 
-  const emailInput = 
-  form.querySelector('input[type="email"]');
-  
-  const fullName =
-  document.getElementById("full-name").value;
+  const emailInput = form.querySelector('input[type="email"]');
 
-const phone =
-  document.getElementById("phone").value;
+  const fullName = document.getElementById("full-name").value;
+  const phone = document.getElementById("phone").value;
+  const country = document.getElementById("country").value;
 
-const country =
-  document.getElementById("country").value;
+  const giftAidChecked = document.getElementById("gift-aid").checked;
 
+  // =============================
+  // GET CURRENT SELECTIONS
+  // =============================
+  const cause = causeSelect.value;
+  const donationAmount = Number(amountSelect.value);
 
-    // GIFT AID CHECKBOX
-  const giftAidChecked =
-  document.getElementById("gift-aid").checked;
+  console.log("Selected cause:", cause);
+  console.log("Selected amount:", donationAmount);
+  console.log("Selected frequency:", frequency);
 
-  const selectedPriceId = priceMap[urlAmount];
+  // =============================
+  // PRICE LOOKUP
+  // =============================
+  let selectedPriceId = null;
+
+  if (frequency === "monthly") {
+    selectedPriceId = priceMap?.[cause]?.[donationAmount];
+  }
 
   console.log("Selected price ID:", selectedPriceId);
+
+  // SAFETY CHECK
+  if (frequency === "monthly" && !selectedPriceId) {
+    console.error("No price ID found for selection");
+    return;
+  }
 
   const res = await fetch("http://localhost:3000/create-subscription", {
 
@@ -103,6 +126,8 @@ const country =
       fullName,
       phone,
       country,
+      frequency,
+      donationAmount
     }),
   });
 
@@ -110,21 +135,19 @@ const country =
 
   console.log("Backend response:", data);
 
-  // IMPORTANT
   if (!data.clientSecret) {
     console.error("Missing clientSecret");
     return;
   }
 
-  // CREATE ELEMENTS
+  // =============================
+  // STRIPE ELEMENTS
+  // =============================
   elements = stripe.elements({
     clientSecret: data.clientSecret,
   });
 
-  // CREATE PAYMENT ELEMENT
   paymentElement = elements.create("payment");
-
-  // MOUNT PAYMENT ELEMENT
   paymentElement.mount("#payment-element");
 
   console.log("Payment Element mounted");
@@ -145,9 +168,7 @@ form.addEventListener("submit", async (e) => {
     input.classList.remove("input-error");
 
     if (input.type !== "checkbox" && !input.value.trim()) {
-
       input.classList.add("input-error");
-
       valid = false;
     }
   });
@@ -155,17 +176,13 @@ form.addEventListener("submit", async (e) => {
   const emailInput = form.querySelector('input[type="email"]');
 
   if (emailInput && !emailInput.value.includes("@")) {
-
     emailInput.classList.add("input-error");
-
     valid = false;
   }
 
   if (!valid) return;
 
-  // SHOW PAYMENT ELEMENT
   await setupStripe();
-
   console.log("Stripe ready");
 });
 
@@ -181,22 +198,16 @@ document.getElementById("pay-button").addEventListener("click", async () => {
   }
 
   const { error } = await stripe.confirmPayment({
-
     elements,
-
     confirmParams: {
       return_url: window.location.href,
     },
-
     redirect: "if_required",
   });
 
   if (error) {
-
     console.error("Payment error:", error.message);
-
   } else {
-
-    alert("Subscription started 🎉");
+    alert("Payment successful 🎉");
   }
 });
