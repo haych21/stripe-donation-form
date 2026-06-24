@@ -111,7 +111,7 @@ async function setupStripe() {
     return;
   }
 
-  const res = await fetch("http://localhost:3000/create-subscription", {
+  const res = await fetch("/create-subscription", {
 
     method: "POST",
 
