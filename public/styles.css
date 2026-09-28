@@ -20,6 +20,7 @@ body {
   padding: 20px;
 }
 
+
 /* TOP LOGO */
 
 .top-logo {
@@ -33,27 +34,37 @@ body {
   width: 110px;
 }
 
+
 /* CONTAINER */
 
 .checkout-container {
   width: 100%;
   max-width: 900px;
   max-height: 90vh;
+
   display: grid;
   grid-template-columns: 0.9fr 1.1fr;
+
   background: white;
+
   border-radius: 24px;
+
   overflow: hidden;
+
   box-shadow: 0 10px 30px rgba(0,0,0,0.08);
 }
+
 
 /* LEFT SIDE */
 
 .donation-summary {
   background: #f8c618;
+
   padding: 25px;
+
   display: flex;
   flex-direction: column;
+
   justify-content: center;
 }
 
@@ -61,6 +72,7 @@ body {
   font-size: 1.6rem;
   margin-bottom: 15px;
 }
+
 
 .summary-card {
   background: rgba(255,255,255,0.35);
@@ -71,6 +83,7 @@ body {
 
   margin-bottom: 15px;
 }
+
 
 .label {
   font-size: 0.75rem;
@@ -87,77 +100,133 @@ body {
   font-size: 1.1rem;
 }
 
+
 /* =========================
    DROPDOWNS
 ========================= */
 
 select {
   width: 100%;
+
   padding: 12px 14px;
+
   margin-top: 6px;
   margin-bottom: 16px;
 
   border: 1px solid #ddd;
+
   border-radius: 8px;
 
   background-color: #fff;
+
   font-size: 15px;
+
   color: #333;
 
   cursor: pointer;
 
-  transition: border 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    border 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 select:focus {
   outline: none;
+
   border-color: #4a90e2;
-  box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.15);
+
+  box-shadow:
+    0 0 0 3px rgba(74, 144, 226, 0.15);
 }
+
+
+/* =========================
+   FREQUENCY TOGGLE
+========================= */
 
 .frequency-toggle {
   display: inline-flex;
+
   gap: 6px;
+
   margin-top: 6px;
+
+  margin-bottom: 8px;
 }
 
 .freq-btn {
   padding: 5px 12px;
+
   border: 1px solid #e6e6e6;
+
   background: #fff;
+
   cursor: pointer;
+
   border-radius: 999px;
+
   font-size: 0.85rem;
+
   color: #444;
+
   transition: 0.15s ease;
+
   flex: none;
 }
 
+
 /* hover = subtle lift, not loud colour change */
+
 .freq-btn:hover {
   border-color: #cfcfcf;
   color: #111;
 }
 
+
 /* active state = uses your main dark theme */
+
 .freq-btn.active {
   background: #111;
+
   color: #fff;
+
   border-color: #111;
 }
 
+
+/* =========================
+   START DATE
+========================= */
+
+#start-date {
+  margin-top: 6px;
+  margin-bottom: 16px;
+}
+
+
+/* =========================
+   SUMMARY TEXT
+========================= */
+
 .small-text {
   line-height: 1.4;
+
   font-size: 0.9rem;
+
   margin-top: 20px;
 }
 
+
 .secure-box {
   background: rgba(255,255,255,0.35);
+
   padding: 12px 14px;
+
   border-radius: 12px;
+
   font-size: 0.85rem;
 }
+
 
 /* RIGHT SIDE */
 
@@ -165,48 +234,84 @@ select:focus {
   padding: 25px;
 
   overflow-y: auto;
+
   max-height: 90vh;
 }
 
 .checkout-form h2 {
   margin-bottom: 15px;
+
   font-size: 1.3rem;
 }
 
+
 form {
   display: flex;
+
   flex-direction: column;
+
   gap: 12px;
 }
 
+
 .input-group {
   display: flex;
+
   flex-direction: column;
 }
 
+
 label {
   margin-bottom: 6px;
+
   font-size: 0.85rem;
 }
 
+
 input {
   padding: 10px;
+
   border: 1px solid #ddd;
+
   border-radius: 10px;
+
   font-size: 0.9rem;
+
   transition: 0.2s ease;
 }
 
+
 input:focus {
   outline: none;
+
   border-color: #f8c618;
 }
 
-/* 🔥 ADDED VALIDATION STYLE */
+
+/* =========================
+   VALIDATION
+========================= */
+
 .input-error {
   border: 2px solid red !important;
+
   background: rgba(255, 0, 0, 0.05);
 }
+
+
+/* Make the new start-date dropdown show
+   the same validation style */
+
+select.input-error {
+  border: 2px solid red !important;
+
+  background: rgba(255, 0, 0, 0.05);
+}
+
+
+/* =========================
+   PAYMENT
+========================= */
 
 .payment-placeholder {
   border: 2px dashed #ccc;
@@ -224,8 +329,14 @@ input:focus {
   font-size: 0.9rem;
 }
 
+
+/* =========================
+   GIFT AID
+========================= */
+
 .gift-aid {
   display: flex;
+
   align-items: flex-start;
 
   gap: 10px;
@@ -233,28 +344,46 @@ input:focus {
   margin-top: 5px;
 }
 
+
 .gift-aid label {
   line-height: 1.4;
+
   font-size: 0.85rem;
 }
 
+
+/* =========================
+   BUTTONS
+========================= */
+
 button {
   background: #f8c618;
+
   border: none;
+
   padding: 12px;
+
   border-radius: 12px;
+
   font-size: 0.9rem;
+
   font-weight: bold;
+
   cursor: pointer;
+
   transition: 0.2s ease;
 }
+
 
 button:hover,
 button:active {
   transform: translateY(-2px);
 }
 
-/* MOBILE */
+
+/* =========================
+   MOBILE
+========================= */
 
 @media (max-width: 900px) {
 

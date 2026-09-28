@@ -38,6 +38,7 @@ const priceMap = {
 // =============================
 const causeSelect = document.getElementById("cause-select");
 const amountSelect = document.getElementById("donation-amount");
+const startDateSelect = document.getElementById("start-date");
 
 const form = document.querySelector("form");
 const inputs = document.querySelectorAll("input");
@@ -56,6 +57,7 @@ freqButtons.forEach(btn => {
     btn.classList.add("active");
 
     frequency = btn.dataset.value;
+
     console.log("Selected frequency:", frequency);
   });
 });
@@ -90,9 +92,13 @@ async function setupStripe() {
   const cause = causeSelect.value;
   const donationAmount = Number(amountSelect.value);
 
+  const startDate = Number(startDateSelect.value);
+
   console.log("Selected cause:", cause);
   console.log("Selected amount:", donationAmount);
   console.log("Selected frequency:", frequency);
+  console.log("Selected start date:", startDate);
+
 
   // =============================
   // PRICE LOOKUP
@@ -105,12 +111,19 @@ async function setupStripe() {
 
   console.log("Selected price ID:", selectedPriceId);
 
+
+  // =============================
   // SAFETY CHECK
+  // =============================
   if (frequency === "monthly" && !selectedPriceId) {
     console.error("No price ID found for selection");
     return;
   }
 
+
+  // =============================
+  // SEND TO BACKEND
+  // =============================
   const res = await fetch("http://localhost:3000/create-subscription", {
 
     method: "POST",
@@ -127,18 +140,22 @@ async function setupStripe() {
       phone,
       country,
       frequency,
-      donationAmount
+      donationAmount,
+      startDate
     }),
   });
+
 
   const data = await res.json();
 
   console.log("Backend response:", data);
 
+
   if (!data.clientSecret) {
     console.error("Missing clientSecret");
     return;
   }
+
 
   // =============================
   // STRIPE ELEMENTS
@@ -163,6 +180,7 @@ form.addEventListener("submit", async (e) => {
 
   let valid = true;
 
+
   inputs.forEach(input => {
 
     input.classList.remove("input-error");
@@ -171,18 +189,37 @@ form.addEventListener("submit", async (e) => {
       input.classList.add("input-error");
       valid = false;
     }
+
   });
+
 
   const emailInput = form.querySelector('input[type="email"]');
 
+
   if (emailInput && !emailInput.value.includes("@")) {
+
     emailInput.classList.add("input-error");
+
     valid = false;
   }
 
+
+  // =============================
+  // VALIDATE START DATE
+  // =============================
+  if (frequency === "monthly" && !startDateSelect.value) {
+
+    startDateSelect.classList.add("input-error");
+
+    valid = false;
+  }
+
+
   if (!valid) return;
 
+
   await setupStripe();
+
   console.log("Stripe ready");
 });
 
@@ -193,21 +230,34 @@ form.addEventListener("submit", async (e) => {
 document.getElementById("pay-button").addEventListener("click", async () => {
 
   if (!elements) {
+
     console.error("Stripe Elements not loaded");
+
     return;
   }
 
+
   const { error } = await stripe.confirmPayment({
+
     elements,
+
     confirmParams: {
       return_url: window.location.href,
     },
+
     redirect: "if_required",
+
   });
 
+
   if (error) {
+
     console.error("Payment error:", error.message);
+
   } else {
+
     alert("Payment successful 🎉");
+
   }
+
 });
