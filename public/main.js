@@ -243,7 +243,7 @@ async function setupStripe() {
 
     const res =
       await fetch(
-        "http://localhost:3000/create-subscription",
+        "https://stripedonationform.onrender.com/create-subscription",
         {
 
           method: "POST",
@@ -497,7 +497,7 @@ async function createMonthlySubscription() {
 
     const response =
       await fetch(
-        "http://localhost:3000/create-monthly-subscription",
+        "https://stripedonationform.onrender.com/create-monthly-subscription",
         {
 
           method: "POST",
