@@ -1,6 +1,6 @@
 require("dotenv").config();
 
-console.log("STRIPE KEY:", process.env.STRIPE_SECRET_KEY);
+console.log("Stripe key loaded:", !!process.env.STRIPE_SECRET_KEY);
 
 const express = require("express");
 const cors = require("cors");
@@ -9,13 +9,85 @@ const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 const app = express();
 
 app.use(cors());
+
+/* =========================================================
+   STRIPE WEBHOOK
+   ========================================================= */
+
+app.post(
+  "/stripe-webhook",
+  express.raw({ type: "application/json" }),
+  (req, res) => {
+    const signature = req.headers["stripe-signature"];
+
+    let event;
+
+    try {
+      event = stripe.webhooks.constructEvent(
+        req.body,
+        signature,
+        process.env.STRIPE_WEBHOOK_SECRET
+      );
+    } catch (err) {
+      console.error(
+        "Webhook signature verification failed:",
+        err.message
+      );
+
+      return res.status(400).send(`Webhook Error: ${err.message}`);
+    }
+
+    console.log("================================");
+    console.log("WEBHOOK RECEIVED");
+    console.log("Event type:", event.type);
+    console.log("Event ID:", event.id);
+    console.log("================================");
+
+    switch (event.type) {
+      case "invoice.paid":
+        console.log("Monthly payment successful");
+        break;
+
+      case "invoice.payment_failed":
+        console.log("Monthly payment failed");
+        break;
+
+      case "customer.subscription.created":
+        console.log("Subscription created");
+        break;
+
+      case "customer.subscription.updated":
+        console.log("Subscription updated");
+        break;
+
+      case "customer.subscription.deleted":
+        console.log("Subscription cancelled");
+        break;
+
+      case "setup_intent.succeeded":
+        console.log("Payment method successfully saved");
+        break;
+
+      default:
+        console.log("Unhandled event type:", event.type);
+    }
+
+    res.json({ received: true });
+  }
+);
+
+/* =========================================================
+   NORMAL JSON ROUTES
+   ========================================================= */
+
 app.use(express.json());
-app.use(express.static('public'));
 
+app.use(express.static("public"));
 
-// =============================
-// CREATE SUBSCRIPTION
-// =============================
+/* =========================================================
+   CREATE MONTHLY DONATION PAYMENT SETUP
+   ========================================================= */
+
 app.post("/create-subscription", async (req, res) => {
   try {
     const {
@@ -25,99 +97,280 @@ app.post("/create-subscription", async (req, res) => {
       fullName,
       phone,
       country,
-      frequency,
-      donationAmount
+      donationAmount,
+      startDate
     } = req.body;
 
+    console.log("================================");
+    console.log("NEW MONTHLY DONATION");
     console.log("Email:", email);
-    console.log("Price ID:", priceId);
-    console.log("Frequency:", frequency);
+    console.log("Amount:", donationAmount);
+    console.log("Start date:", startDate);
+    console.log("================================");
 
-    // =============================
-    // CREATE CUSTOMER
-    // =============================
+    /* =====================================================
+       CREATE CUSTOMER
+       ===================================================== */
+
     const customer = await stripe.customers.create({
       email,
       name: fullName,
       phone,
-      address: { country },
-      metadata: {
-        giftAid: giftAid ? "yes" : "no",
+
+      address: {
+        country
       },
+
+      metadata: {
+        giftAid: giftAid ? "yes" : "no"
+      }
     });
 
-    // =============================
-    // ONE-TIME PAYMENT FLOW
-    // =============================
-    if (frequency === "one-time") {
+    console.log("Customer created:", customer.id);
 
-      const amountMap = {
-        5: 500,
-        10: 1000,
-        15: 1500
-      };
+    /* =====================================================
+       VALIDATE MONTHLY DONATION
+       ===================================================== */
 
-      const amount = amountMap[donationAmount];
+    const billingDay = Number(startDate);
 
-      if (!amount) {
-        return res.status(400).json({ error: "Invalid amount" });
-      }
-
-      const paymentIntent = await stripe.paymentIntents.create({
-        amount,
-        currency: "gbp",
-        customer: customer.id,
-        automatic_payment_methods: {
-          enabled: true,
-        },
-      });
-
-      return res.json({
-        clientSecret: paymentIntent.client_secret,
+    if (![1, 15, 26].includes(billingDay)) {
+      return res.status(400).json({
+        error: "Invalid start date"
       });
     }
 
-    // =============================
-    // MONTHLY SUBSCRIPTION FLOW
-    // =============================
-    const subscription = await stripe.subscriptions.create({
-      customer: customer.id,
-      items: [
-        {
-          price: priceId,
-        },
-      ],
-      payment_behavior: "default_incomplete",
+    if (!priceId) {
+      return res.status(400).json({
+        error: "Missing monthly price ID"
+      });
+    }
 
-      payment_settings: {
-        payment_method_types: ["card", "bacs_debit"],
-        save_default_payment_method: "on_subscription",
+    /* =====================================================
+       CREATE SETUP INTENT
+
+       We do NOT create the subscription yet.
+
+       The SetupIntent saves the donor's payment method
+       first. The subscription is created afterwards by
+       /create-monthly-subscription.
+
+       No donation is charged here.
+       ===================================================== */
+
+    const setupIntent = await stripe.setupIntents.create({
+      customer: customer.id,
+
+      automatic_payment_methods: {
+        enabled: true
       },
 
-      expand: ["latest_invoice.confirmation_secret"],
+      metadata: {
+        donationType: "monthly",
+        donationAmount: String(donationAmount),
+        billingDay: String(billingDay),
+        giftAid: giftAid ? "yes" : "no",
+        priceId
+      }
     });
 
-    console.log("Subscription created:", subscription.id);
+    console.log(
+      "SetupIntent created:",
+      setupIntent.id
+    );
 
     return res.json({
-      clientSecret:
-        subscription.latest_invoice.confirmation_secret.client_secret,
-      subscriptionId: subscription.id,
+      mode: "setup",
+
+      setupClientSecret:
+        setupIntent.client_secret,
+
+      setupIntentId:
+        setupIntent.id,
+
+      customerId:
+        customer.id,
+
+      priceId,
+
+      billingDay
     });
 
   } catch (err) {
     console.error("PAYMENT ERROR:", err);
 
     res.status(500).json({
-      error: err.message,
+      error: err.message
     });
   }
 });
 
+/* =========================================================
+   CREATE MONTHLY SUBSCRIPTION
+   ========================================================= */
 
-// =============================
-// START SERVER
-// =============================
-app.listen(process.env.PORT || 3000, () => {
-  console.log("Server running");
-});
+app.post(
+  "/create-monthly-subscription",
+  async (req, res) => {
+    try {
+      const {
+        customerId,
+        setupIntentId,
+        priceId,
+        billingDay
+      } = req.body;
+
+      console.log("================================");
+      console.log("CREATING MONTHLY SUBSCRIPTION");
+      console.log("Customer:", customerId);
+      console.log("SetupIntent:", setupIntentId);
+      console.log("Price:", priceId);
+      console.log("Billing day:", billingDay);
+      console.log("================================");
+
+      /* =====================================================
+         VALIDATE BILLING DAY
+         ===================================================== */
+
+      const validBillingDays = [1, 15, 26];
+
+      if (!validBillingDays.includes(Number(billingDay))) {
+        return res.status(400).json({
+          error: "Invalid billing day"
+        });
+      }
+
+      /* =====================================================
+         RETRIEVE SETUP INTENT
+         ===================================================== */
+
+      const setupIntent =
+        await stripe.setupIntents.retrieve(
+          setupIntentId
+        );
+
+      if (setupIntent.status !== "succeeded") {
+        return res.status(400).json({
+          error:
+            "Payment method has not been successfully saved."
+        });
+      }
+
+      if (!setupIntent.payment_method) {
+        return res.status(400).json({
+          error:
+            "No payment method was found on the SetupIntent."
+        });
+      }
+
+      /* =====================================================
+         MAKE SURE SETUP INTENT BELONGS TO CUSTOMER
+         ===================================================== */
+
+      if (setupIntent.customer !== customerId) {
+        return res.status(400).json({
+          error:
+            "SetupIntent does not belong to this customer."
+        });
+      }
+
+      const paymentMethodId =
+        setupIntent.payment_method;
+
+      console.log(
+        "Saved payment method:",
+        paymentMethodId
+      );
+
+      /* =====================================================
+         CREATE SUBSCRIPTION
+
+         billing_cycle_anchor_config makes recurring
+         billing happen on the selected day.
+
+         proration_behavior: "none" prevents the initial
+         partial-period charge.
+
+         CARD-ONLY for the actual subscription while we
+         leave Bacs investigation for later.
+         ===================================================== */
+
+      const subscription =
+        await stripe.subscriptions.create({
+          customer: customerId,
+
+          items: [
+            {
+              price: priceId
+            }
+          ],
+
+          default_payment_method:
+            paymentMethodId,
+
+          billing_cycle_anchor_config: {
+            day_of_month:
+              Number(billingDay)
+          },
+
+          proration_behavior: "none",
+
+          payment_settings: {
+            payment_method_types: [
+              "card"
+            ],
+
+            save_default_payment_method:
+              "on_subscription"
+          },
+
+          metadata: {
+            donationType: "monthly",
+            billingDay:
+              String(billingDay)
+          }
+        });
+
+      console.log(
+        "Monthly subscription created:",
+        subscription.id
+      );
+
+      console.log(
+        "Subscription status:",
+        subscription.status
+      );
+
+      return res.json({
+        success: true,
+
+        subscriptionId:
+          subscription.id,
+
+        status:
+          subscription.status
+      });
+
+    } catch (err) {
+      console.error(
+        "MONTHLY SUBSCRIPTION ERROR:",
+        err
+      );
+
+      res.status(500).json({
+        error: err.message
+      });
+    }
+  }
+);
+
+/* =========================================================
+   START SERVER
+   ========================================================= */
+
+app.listen(
+  process.env.PORT || 3000,
+  () => {
+    console.log("Server running");
+  }
+);

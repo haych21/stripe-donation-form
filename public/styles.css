@@ -21,12 +21,16 @@ body {
 }
 
 
-/* TOP LOGO */
+/* =========================
+   TOP LOGO
+========================= */
 
 .top-logo {
   width: 100%;
+
   display: flex;
   justify-content: center;
+
   margin-bottom: 15px;
 }
 
@@ -35,7 +39,9 @@ body {
 }
 
 
-/* CONTAINER */
+/* =========================
+   CONTAINER
+========================= */
 
 .checkout-container {
   width: 100%;
@@ -51,11 +57,14 @@ body {
 
   overflow: hidden;
 
-  box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+  box-shadow:
+    0 10px 30px rgba(0, 0, 0, 0.08);
 }
 
 
-/* LEFT SIDE */
+/* =========================
+   LEFT SIDE
+========================= */
 
 .donation-summary {
   background: #f8c618;
@@ -70,12 +79,17 @@ body {
 
 .donation-summary h1 {
   font-size: 1.6rem;
+
   margin-bottom: 15px;
 }
 
 
+/* =========================
+   SUMMARY CARD
+========================= */
+
 .summary-card {
-  background: rgba(255,255,255,0.35);
+  background: rgba(255, 255, 255, 0.35);
 
   padding: 18px;
 
@@ -97,6 +111,7 @@ body {
 
 .summary-card h2 {
   margin-bottom: 12px;
+
   font-size: 1.1rem;
 }
 
@@ -141,65 +156,12 @@ select:focus {
 
 
 /* =========================
-   FREQUENCY TOGGLE
-========================= */
-
-.frequency-toggle {
-  display: inline-flex;
-
-  gap: 6px;
-
-  margin-top: 6px;
-
-  margin-bottom: 8px;
-}
-
-.freq-btn {
-  padding: 5px 12px;
-
-  border: 1px solid #e6e6e6;
-
-  background: #fff;
-
-  cursor: pointer;
-
-  border-radius: 999px;
-
-  font-size: 0.85rem;
-
-  color: #444;
-
-  transition: 0.15s ease;
-
-  flex: none;
-}
-
-
-/* hover = subtle lift, not loud colour change */
-
-.freq-btn:hover {
-  border-color: #cfcfcf;
-  color: #111;
-}
-
-
-/* active state = uses your main dark theme */
-
-.freq-btn.active {
-  background: #111;
-
-  color: #fff;
-
-  border-color: #111;
-}
-
-
-/* =========================
    START DATE
 ========================= */
 
 #start-date {
   margin-top: 6px;
+
   margin-bottom: 16px;
 }
 
@@ -217,8 +179,12 @@ select:focus {
 }
 
 
+/* =========================
+   SECURE BOX
+========================= */
+
 .secure-box {
-  background: rgba(255,255,255,0.35);
+  background: rgba(255, 255, 255, 0.35);
 
   padding: 12px 14px;
 
@@ -228,7 +194,9 @@ select:focus {
 }
 
 
-/* RIGHT SIDE */
+/* =========================
+   RIGHT SIDE
+========================= */
 
 .checkout-form {
   padding: 25px;
@@ -245,6 +213,10 @@ select:focus {
 }
 
 
+/* =========================
+   FORM
+========================= */
+
 form {
   display: flex;
 
@@ -253,6 +225,10 @@ form {
   gap: 12px;
 }
 
+
+/* =========================
+   INPUT GROUP
+========================= */
 
 .input-group {
   display: flex;
@@ -298,9 +274,6 @@ input:focus {
   background: rgba(255, 0, 0, 0.05);
 }
 
-
-/* Make the new start-date dropdown show
-   the same validation style */
 
 select.input-error {
   border: 2px solid red !important;
@@ -353,7 +326,7 @@ select.input-error {
 
 
 /* =========================
-   BUTTONS
+   BUTTON
 ========================= */
 
 button {
@@ -407,4 +380,5 @@ button:active {
   .top-logo img {
     width: 100px;
   }
+
 }

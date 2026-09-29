@@ -3,22 +3,29 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
     <link rel="stylesheet" href="styles.css">
+
     <title>Donation Form</title>
+
     <script src="https://js.stripe.com/v3/"></script>
 </head>
+
 <body>
 
-      <main class="checkout-container">
+  <main class="checkout-container">
 
-
-    <!-- LEFT SIDE -->
+    <!-- =========================
+         LEFT SIDE
+    ========================== -->
 
     <section class="donation-summary">
+
       <h1>Monthly Donation</h1>
 
       <div class="summary-card">
-        <p class="label">Cause</p>
+
+        <p class="label">Product</p>
 
         <select id="cause-select">
 
@@ -35,6 +42,7 @@
           </option>
 
         </select>
+
 
         <p class="label">Donation Amount</p>
 
@@ -54,108 +62,180 @@
 
         </select>
 
-        <p class="label">Frequency</p>
-            <div class="frequency-toggle">
 
-              <button type="button" class="freq-btn active" data-value="monthly">
-                Monthly
-              </button>
+        <!-- PREFERRED START DATE -->
 
-              <button type="button" class="freq-btn" data-value="one-time">
-                 One-time
-              </button>
+        <p class="label">
+          Preferred Start Date
+        </p>
 
-            </div>
+        <select id="start-date">
 
-               <!-- PREFERRED START DATE -->
-            <p class="label">Preferred Start Date</p>
-            <select id="start-date">
+          <option value="">
+            Select a start date
+          </option>
 
-                <option value="">
-                    Select a start date
-                </option>
+          <option value="1">
+            1st of the month
+          </option>
 
-                <option value="1">
-                    1st of the month
-                </option>
+          <option value="15">
+            15th of the month
+          </option>
 
-                <option value="15">
-                    15th of the month
-                </option>
+          <option value="26">
+            26th of the month
+          </option>
 
-                <option value="26">
-                    26th of the month
-                </option>
+        </select>
 
-            </select>
 
         <p class="small-text">
-            Your monthly donation helps provide urgent aid to families in need.
+          Your monthly donation helps provide urgent aid to families in need.
         </p>
 
       </div>
+
 
       <div class="secure-box">
         <p>🔒 Secure payments powered by Stripe</p>
       </div>
 
     </section>
-    <!-- RIGHT SIDE -->
+
+
+    <!-- =========================
+         RIGHT SIDE
+    ========================== -->
+
     <section class="checkout-form">
+
       <h2>Donor Information</h2>
 
       <form>
 
         <div class="input-group">
-          <label>Full Name</label>
-          <input type="text" id="full-name" placeholder="John Smith" />
+
+          <label for="full-name">
+            Full Name
+          </label>
+
+          <input
+            type="text"
+            id="full-name"
+            placeholder="John Smith"
+          />
+
         </div>
+
 
         <div class="input-group">
-          <label>Email Address</label>
-          <input type="email" placeholder="john@example.com" />
+
+          <label for="email">
+            Email Address
+          </label>
+
+          <input
+            type="email"
+            id="email"
+            placeholder="john@example.com"
+          />
+
         </div>
+
 
         <div class="input-group">
-          <label>Phone Number</label>
-          <input type="tel" id="phone" placeholder="+44 7123 456789" />
+
+          <label for="phone">
+            Phone Number
+          </label>
+
+          <input
+            type="tel"
+            id="phone"
+            placeholder="+44 7123 456789"
+          />
+
         </div>
+
 
         <div class="input-group">
-          <label>Address</label>
-          <input type="text" placeholder="123 Example Street" />
+
+          <label for="address">
+            Address
+          </label>
+
+          <input
+            type="text"
+            id="address"
+            placeholder="123 Example Street"
+          />
+
         </div>
+
 
         <div class="input-group">
-          <label>Postcode</label>
-          <input type="text" placeholder="SW1A 1AA" />
+
+          <label for="postcode">
+            Postcode
+          </label>
+
+          <input
+            type="text"
+            id="postcode"
+            placeholder="SW1A 1AA"
+          />
+
         </div>
+
 
         <div class="input-group">
-          <label>Country</label>
-          <input type="text" id="country" placeholder="United Kingdom" />
+
+          <label for="country">
+            Country
+          </label>
+
+          <input
+            type="text"
+            id="country"
+            placeholder="United Kingdom"
+          />
+
         </div>
 
-        <!-- STRIPE PLACEHOLDER -->
+
+        <!-- =========================
+             STRIPE PAYMENT ELEMENT
+        ========================== -->
 
         <div class="payment-placeholder">
+
           <div id="payment-element"></div>
 
-          <button type="button" id="pay-button">
-            Pay Now
-          </button>
         </div>
 
-        <!-- GIFT AID -->
+
+        <!-- =========================
+             GIFT AID
+        ========================== -->
 
         <div class="gift-aid">
-          <input type="checkbox" id="gift-aid"/>
-          <label for="giftAid">
+
+          <input
+            type="checkbox"
+            id="gift-aid"
+          />
+
+          <label for="gift-aid">
             I am a UK taxpayer and want to claim Gift Aid on this donation.
           </label>
+
         </div>
 
-        <!-- BUTTON -->
+
+        <!-- =========================
+             BUTTON
+        ========================== -->
 
         <button type="submit">
           Continue To Payment
@@ -167,6 +247,8 @@
 
   </main>
 
+
   <script src="main.js"></script>
+
 </body>
 </html>

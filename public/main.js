@@ -1,12 +1,18 @@
 // =============================
 // STRIPE INIT
 // =============================
-const stripe = Stripe("pk_test_51TYkg6EPmNke8msB4Yvsmr1Wg12tWt8DDu23mv12X1WuV2T0WvoZwUDLzuldsSa73v1jVMwwrNx1TkXGq3fSmKdb00YBQ7YEJC");
+const stripe = Stripe(
+  "pk_test_51TYkg6EPmNke8msB4Yvsmr1Wg12tWt8DDu23mv12X1WuV2T0WvoZwUDLzuldsSa73v1jVMwwrNx1TkXGq3fSmKdb00YBQ7YEJC"
+);
 
 console.log("JS is connected and running");
 
 let elements = null;
 let paymentElement = null;
+
+let monthlySetupData = null;
+
+let paymentReady = false;
 
 
 // =============================
@@ -36,41 +42,90 @@ const priceMap = {
 // =============================
 // GET ELEMENTS
 // =============================
-const causeSelect = document.getElementById("cause-select");
-const amountSelect = document.getElementById("donation-amount");
-const startDateSelect = document.getElementById("start-date");
+const causeSelect =
+  document.getElementById("cause-select");
 
-const form = document.querySelector("form");
-const inputs = document.querySelectorAll("input");
+const amountSelect =
+  document.getElementById("donation-amount");
 
+const startDateSelect =
+  document.getElementById("start-date");
 
-// =============================
-// FREQUENCY TOGGLE
-// =============================
-let frequency = "monthly";
+const form =
+  document.querySelector("form");
 
-const freqButtons = document.querySelectorAll(".freq-btn");
+const submitButton =
+  form.querySelector('button[type="submit"]');
 
-freqButtons.forEach(btn => {
-  btn.addEventListener("click", () => {
-    freqButtons.forEach(b => b.classList.remove("active"));
-    btn.classList.add("active");
-
-    frequency = btn.dataset.value;
-
-    console.log("Selected frequency:", frequency);
-  });
-});
+const inputs =
+  document.querySelectorAll("input");
 
 
 // =============================
 // INPUT RESET
 // =============================
-inputs.forEach((input) => {
+inputs.forEach(input => {
+
   input.addEventListener("input", () => {
-    input.classList.remove("input-error");
+
+    input.classList.remove(
+      "input-error"
+    );
+
   });
+
 });
+
+
+// =============================
+// START DATE RESET
+// =============================
+startDateSelect.addEventListener(
+  "change",
+  () => {
+
+    startDateSelect.classList.remove(
+      "input-error"
+    );
+
+  }
+);
+
+
+// =============================
+// RESET STRIPE
+// =============================
+function resetStripe() {
+
+  if (paymentElement) {
+
+    paymentElement.destroy();
+
+    paymentElement = null;
+
+  }
+
+  elements = null;
+
+  monthlySetupData = null;
+
+  paymentReady = false;
+
+  const paymentContainer =
+    document.getElementById(
+      "payment-element"
+    );
+
+  if (paymentContainer) {
+
+    paymentContainer.innerHTML = "";
+
+  }
+
+  submitButton.textContent =
+    "Continue To Payment";
+
+}
 
 
 // =============================
@@ -78,186 +133,638 @@ inputs.forEach((input) => {
 // =============================
 async function setupStripe() {
 
-  const emailInput = form.querySelector('input[type="email"]');
+  try {
 
-  const fullName = document.getElementById("full-name").value;
-  const phone = document.getElementById("phone").value;
-  const country = document.getElementById("country").value;
+    const emailInput =
+      form.querySelector(
+        'input[type="email"]'
+      );
 
-  const giftAidChecked = document.getElementById("gift-aid").checked;
+    const fullName =
+      document.getElementById(
+        "full-name"
+      ).value;
 
-  // =============================
-  // GET CURRENT SELECTIONS
-  // =============================
-  const cause = causeSelect.value;
-  const donationAmount = Number(amountSelect.value);
+    const phone =
+      document.getElementById(
+        "phone"
+      ).value;
 
-  const startDate = Number(startDateSelect.value);
+    const country =
+      document.getElementById(
+        "country"
+      ).value;
 
-  console.log("Selected cause:", cause);
-  console.log("Selected amount:", donationAmount);
-  console.log("Selected frequency:", frequency);
-  console.log("Selected start date:", startDate);
-
-
-  // =============================
-  // PRICE LOOKUP
-  // =============================
-  let selectedPriceId = null;
-
-  if (frequency === "monthly") {
-    selectedPriceId = priceMap?.[cause]?.[donationAmount];
-  }
-
-  console.log("Selected price ID:", selectedPriceId);
+    const giftAidChecked =
+      document.getElementById(
+        "gift-aid"
+      ).checked;
 
 
-  // =============================
-  // SAFETY CHECK
-  // =============================
-  if (frequency === "monthly" && !selectedPriceId) {
-    console.error("No price ID found for selection");
-    return;
-  }
+    // =============================
+    // CURRENT SELECTIONS
+    // =============================
+
+    const cause =
+      causeSelect.value;
+
+    const donationAmount =
+      Number(
+        amountSelect.value
+      );
+
+    const startDate =
+      Number(
+        startDateSelect.value
+      );
 
 
-  // =============================
-  // SEND TO BACKEND
-  // =============================
-  const res = await fetch("http://localhost:3000/create-subscription", {
+    console.log(
+      "Selected cause:",
+      cause
+    );
 
-    method: "POST",
+    console.log(
+      "Selected amount:",
+      donationAmount
+    );
 
-    headers: {
-      "Content-Type": "application/json",
-    },
-
-    body: JSON.stringify({
-      email: emailInput.value,
-      priceId: selectedPriceId,
-      giftAid: giftAidChecked,
-      fullName,
-      phone,
-      country,
-      frequency,
-      donationAmount,
+    console.log(
+      "Selected start date:",
       startDate
-    }),
-  });
+    );
 
 
-  const data = await res.json();
+    // =============================
+    // PRICE LOOKUP
+    // =============================
 
-  console.log("Backend response:", data);
+    const selectedPriceId =
+      priceMap?.[cause]?.[
+        donationAmount
+      ];
 
 
-  if (!data.clientSecret) {
-    console.error("Missing clientSecret");
-    return;
+    console.log(
+      "Selected price ID:",
+      selectedPriceId
+    );
+
+
+    // =============================
+    // SAFETY CHECK
+    // =============================
+
+    if (!selectedPriceId) {
+
+      console.error(
+        "No price ID found for selection."
+      );
+
+      alert(
+        "We could not find the selected donation price."
+      );
+
+      return false;
+
+    }
+
+
+    // =============================
+    // RESET OLD STRIPE ELEMENTS
+    // =============================
+
+    resetStripe();
+
+
+    // =============================
+    // SEND TO BACKEND
+    // =============================
+
+    const res =
+      await fetch(
+        "http://localhost:3000/create-subscription",
+        {
+
+          method: "POST",
+
+          headers: {
+            "Content-Type":
+              "application/json"
+          },
+
+          body: JSON.stringify({
+
+            email:
+              emailInput.value,
+
+            priceId:
+              selectedPriceId,
+
+            giftAid:
+              giftAidChecked,
+
+            fullName,
+
+            phone,
+
+            country,
+
+            donationAmount,
+
+            startDate
+
+          })
+
+        }
+      );
+
+
+    const data =
+      await res.json();
+
+
+    console.log(
+      "Backend response:",
+      data
+    );
+
+
+    if (!res.ok) {
+
+      console.error(
+        "Backend error:",
+        data.error
+      );
+
+      alert(
+        data.error ||
+        "Something went wrong."
+      );
+
+      return false;
+
+    }
+
+
+    // =============================
+    // MONTHLY PAYMENT SETUP
+    // =============================
+
+    if (
+      data.mode !== "setup"
+    ) {
+
+      console.error(
+        "Unexpected Stripe response."
+      );
+
+      alert(
+        "Something went wrong while setting up your monthly donation."
+      );
+
+      return false;
+
+    }
+
+
+    if (
+      !data.setupClientSecret
+    ) {
+
+      console.error(
+        "Missing SetupIntent client secret."
+      );
+
+      return false;
+
+    }
+
+
+    // =============================
+    // SAVE MONTHLY SETUP DATA
+    // =============================
+
+    monthlySetupData = {
+
+      setupIntentId:
+        data.setupIntentId,
+
+      customerId:
+        data.customerId,
+
+      priceId:
+        data.priceId,
+
+      billingDay:
+        data.billingDay
+
+    };
+
+
+    // =============================
+    // CREATE STRIPE ELEMENTS
+    // =============================
+
+    elements =
+      stripe.elements({
+
+        clientSecret:
+          data.setupClientSecret
+
+      });
+
+
+    paymentElement =
+      elements.create(
+        "payment"
+      );
+
+
+    paymentElement.mount(
+      "#payment-element"
+    );
+
+
+    // =============================
+    // PAYMENT READY
+    // =============================
+
+    paymentReady = true;
+
+
+    submitButton.textContent =
+      "Start Monthly Donation";
+
+
+    console.log(
+      "Payment Element mounted for monthly setup."
+    );
+
+    console.log(
+      "Payment form is ready for card details."
+    );
+
+
+    return true;
+
+
+  } catch (err) {
+
+    console.error(
+      "Stripe setup error:",
+      err
+    );
+
+    alert(
+      "Something went wrong while setting up the payment."
+    );
+
+    return false;
+
   }
 
+}
 
-  // =============================
-  // STRIPE ELEMENTS
-  // =============================
-  elements = stripe.elements({
-    clientSecret: data.clientSecret,
-  });
 
-  paymentElement = elements.create("payment");
-  paymentElement.mount("#payment-element");
+// =============================
+// CREATE MONTHLY SUBSCRIPTION
+// =============================
+async function createMonthlySubscription() {
 
-  console.log("Payment Element mounted");
+  try {
+
+    console.log(
+      "Saving payment method..."
+    );
+
+
+    const {
+      error,
+      setupIntent
+    } =
+      await stripe.confirmSetup({
+
+        elements,
+
+        confirmParams: {
+
+          return_url:
+            window.location.href
+
+        },
+
+        redirect:
+          "if_required"
+
+      });
+
+
+    if (error) {
+
+      console.error(
+        "Setup error:",
+        error.message
+      );
+
+      alert(
+        error.message
+      );
+
+      return;
+
+    }
+
+
+    console.log(
+      "Payment method saved."
+    );
+
+    console.log(
+      "SetupIntent:",
+      setupIntent
+    );
+
+
+    // =============================
+    // CREATE MONTHLY SUBSCRIPTION
+    // =============================
+
+    console.log(
+      "Creating monthly subscription..."
+    );
+
+
+    const response =
+      await fetch(
+        "http://localhost:3000/create-monthly-subscription",
+        {
+
+          method: "POST",
+
+          headers: {
+
+            "Content-Type":
+              "application/json"
+
+          },
+
+          body: JSON.stringify({
+
+            customerId:
+              monthlySetupData.customerId,
+
+            setupIntentId:
+              monthlySetupData.setupIntentId,
+
+            priceId:
+              monthlySetupData.priceId,
+
+            billingDay:
+              monthlySetupData.billingDay
+
+          })
+
+        }
+      );
+
+
+    const data =
+      await response.json();
+
+
+    console.log(
+      "Subscription response:",
+      data
+    );
+
+
+    if (!response.ok) {
+
+      console.error(
+        "Subscription creation failed:",
+        data.error
+      );
+
+      alert(
+        data.error ||
+        "Could not create your monthly donation."
+      );
+
+      return;
+
+    }
+
+
+    console.log(
+      "Monthly subscription created:",
+      data.subscriptionId
+    );
+
+    console.log(
+      "Subscription status:",
+      data.status
+    );
+
+
+    // =============================
+    // SUCCESS
+    // =============================
+
+    alert(
+      "Your monthly donation has been set up successfully 🎉"
+    );
+
+
+  } catch (err) {
+
+    console.error(
+      "Subscription request failed:",
+      err
+    );
+
+    alert(
+      "Something went wrong while creating your monthly donation."
+    );
+
+  }
+
 }
 
 
 // =============================
 // FORM SUBMIT
 // =============================
-form.addEventListener("submit", async (e) => {
+form.addEventListener(
+  "submit",
+  async (e) => {
 
-  e.preventDefault();
-
-  let valid = true;
+    e.preventDefault();
 
 
-  inputs.forEach(input => {
+    // =================================================
+    // SECOND CLICK
+    // =================================================
+    // Stripe Payment Element is already visible.
+    // The donor has entered their payment details.
+    // Confirm the SetupIntent and create the subscription.
 
-    input.classList.remove("input-error");
+    if (
+      paymentReady
+    ) {
 
-    if (input.type !== "checkbox" && !input.value.trim()) {
-      input.classList.add("input-error");
-      valid = false;
+      submitButton.disabled = true;
+
+      submitButton.textContent =
+        "Processing...";
+
+
+      await createMonthlySubscription();
+
+
+      submitButton.disabled = false;
+
+      submitButton.textContent =
+        "Start Monthly Donation";
+
+
+      return;
+
     }
 
-  });
+
+    let valid = true;
 
 
-  const emailInput = form.querySelector('input[type="email"]');
+    // =============================
+    // RESET ERRORS
+    // =============================
+
+    inputs.forEach(input => {
+
+      input.classList.remove(
+        "input-error"
+      );
+
+    });
 
 
-  if (emailInput && !emailInput.value.includes("@")) {
+    // =============================
+    // REQUIRED INPUTS
+    // =============================
 
-    emailInput.classList.add("input-error");
+    inputs.forEach(input => {
 
-    valid = false;
+      if (
+        input.type !== "checkbox" &&
+        !input.value.trim()
+      ) {
+
+        input.classList.add(
+          "input-error"
+        );
+
+        valid = false;
+
+      }
+
+    });
+
+
+    // =============================
+    // EMAIL VALIDATION
+    // =============================
+
+    const emailInput =
+      form.querySelector(
+        'input[type="email"]'
+      );
+
+
+    if (
+      emailInput &&
+      !emailInput.value.includes("@")
+    ) {
+
+      emailInput.classList.add(
+        "input-error"
+      );
+
+      valid = false;
+
+    }
+
+
+    // =============================
+    // START DATE
+    // =============================
+
+    if (
+      !startDateSelect.value
+    ) {
+
+      startDateSelect.classList.add(
+        "input-error"
+      );
+
+      valid = false;
+
+    }
+
+
+    // =============================
+    // STOP IF INVALID
+    // =============================
+
+    if (!valid) {
+
+      console.log(
+        "Form validation failed."
+      );
+
+      return;
+
+    }
+
+
+    // =============================
+    // FIRST CLICK
+    // =============================
+
+    submitButton.disabled = true;
+
+    submitButton.textContent =
+      "Preparing Payment...";
+
+
+    const ready =
+      await setupStripe();
+
+
+    submitButton.disabled = false;
+
+
+    if (!ready) {
+
+      console.error(
+        "Stripe setup failed."
+      );
+
+      submitButton.textContent =
+        "Continue To Payment";
+
+      return;
+
+    }
+
+
+    console.log(
+      "Stripe is ready."
+    );
+
+
+    // The button text is changed
+    // inside setupStripe().
+
   }
-
-
-  // =============================
-  // VALIDATE START DATE
-  // =============================
-  if (frequency === "monthly" && !startDateSelect.value) {
-
-    startDateSelect.classList.add("input-error");
-
-    valid = false;
-  }
-
-
-  if (!valid) return;
-
-
-  await setupStripe();
-
-  console.log("Stripe ready");
-});
-
-
-// =============================
-// PAY BUTTON
-// =============================
-document.getElementById("pay-button").addEventListener("click", async () => {
-
-  if (!elements) {
-
-    console.error("Stripe Elements not loaded");
-
-    return;
-  }
-
-
-  const { error } = await stripe.confirmPayment({
-
-    elements,
-
-    confirmParams: {
-      return_url: window.location.href,
-    },
-
-    redirect: "if_required",
-
-  });
-
-
-  if (error) {
-
-    console.error("Payment error:", error.message);
-
-  } else {
-
-    alert("Payment successful 🎉");
-
-  }
-
-});
+);
