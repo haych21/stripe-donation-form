@@ -126,7 +126,7 @@ app.post("/create-subscription", async (req, res) => {
       metadata: {
         giftAid: giftAid ? "yes" : "no",
         donationCause: donationCause || ""
-      }
+}
     });
 
     console.log("Customer created:", customer.id);
@@ -152,30 +152,27 @@ app.post("/create-subscription", async (req, res) => {
     /* =====================================================
        CREATE SETUP INTENT
 
+       We do NOT create the subscription yet.
+
        The SetupIntent saves the donor's payment method
-       before the monthly subscription is created.
+       first. The subscription is created afterwards by
+       /create-monthly-subscription.
 
-       Supported payment methods:
-       - Card
-       - Bacs Direct Debit
-
-       No donation is charged at this stage.
+       No donation is charged here.
        ===================================================== */
 
     const setupIntent = await stripe.setupIntents.create({
       customer: customer.id,
 
-      payment_method_types: [
-        "card",
-        "bacs_debit"
-      ],
+      automatic_payment_methods: {
+        enabled: true
+      },
 
       metadata: {
         donationType: "monthly",
         donationAmount: String(donationAmount),
         billingDay: String(billingDay),
         giftAid: giftAid ? "yes" : "no",
-        donationCause: donationCause || "",
         priceId
       }
     });
@@ -297,8 +294,8 @@ app.post(
          proration_behavior: "none" prevents the initial
          partial-period charge.
 
-         The payment method is taken from the completed
-         SetupIntent, whether it is a card or Bacs.
+         CARD-ONLY for the actual subscription while we
+         leave Bacs investigation for later.
          ===================================================== */
 
       const subscription =
@@ -320,6 +317,15 @@ app.post(
           },
 
           proration_behavior: "none",
+
+          payment_settings: {
+            payment_method_types: [
+              "card"
+            ],
+
+            save_default_payment_method:
+              "on_subscription"
+          },
 
           metadata: {
             donationType: "monthly",
