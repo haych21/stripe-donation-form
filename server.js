@@ -152,21 +152,23 @@ app.post("/create-subscription", async (req, res) => {
     /* =====================================================
        CREATE SETUP INTENT
 
-       We do NOT create the subscription yet.
-
        The SetupIntent saves the donor's payment method
-       first. The subscription is created afterwards by
-       /create-monthly-subscription.
+       before the monthly subscription is created.
 
-       No donation is charged here.
+       Supported payment methods:
+       - Card
+       - Bacs Direct Debit
+
+       No donation is charged at this stage.
        ===================================================== */
 
     const setupIntent = await stripe.setupIntents.create({
       customer: customer.id,
 
-      automatic_payment_methods: {
-        enabled: true
-      },
+      payment_method_types: [
+        "card",
+        "bacs_debit"
+      ],
 
       metadata: {
         donationType: "monthly",
@@ -295,7 +297,8 @@ app.post(
          proration_behavior: "none" prevents the initial
          partial-period charge.
 
-         Payment methods are not manually restricted here.
+         The payment method is taken from the completed
+         SetupIntent, whether it is a card or Bacs.
          ===================================================== */
 
       const subscription =
