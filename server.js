@@ -550,6 +550,236 @@ app.use(
   express.static("public")
 );
 
+/* =========================================================
+   GET ACTIVE DONATION PRODUCTS + MONTHLY PRICES
+
+   Stripe is the source of truth for:
+   - Product names
+   - Active/inactive products
+   - Donation amounts
+   - Price IDs
+   - Monthly recurring prices
+   ========================================================= */
+
+app.get(
+  "/donation-options",
+  async (req, res) => {
+
+    try {
+
+      /*
+       * Get all active recurring GBP prices.
+       *
+       * We only want:
+       * - active prices
+       * - GBP
+       * - recurring prices
+       * - monthly prices
+       */
+
+      const prices =
+        await stripe.prices.list({
+
+          active: true,
+
+          currency: "gbp",
+
+          type: "recurring",
+
+          limit: 100,
+
+          expand: [
+            "data.product"
+          ]
+
+        });
+
+
+      /*
+       * Group prices by Product.
+       */
+
+      const products = {};
+
+
+      prices.data.forEach(price => {
+
+        const product =
+          price.product;
+
+
+        /*
+         * Make sure Stripe returned
+         * an actual Product object.
+         */
+
+        if (
+          !product ||
+          typeof product === "string"
+        ) {
+
+          return;
+
+        }
+
+
+        /*
+         * Only active Products should
+         * appear on the donation form.
+         */
+
+        if (
+          !product.active
+        ) {
+
+          return;
+
+        }
+
+
+        /*
+         * Only monthly recurring prices
+         * belong on this form.
+         */
+
+        if (
+          !price.recurring ||
+          price.recurring.interval !== "month" ||
+          price.recurring.interval_count !== 1
+        ) {
+
+          return;
+
+        }
+
+
+        /*
+         * Create the Product entry
+         * if it doesn't exist yet.
+         */
+
+        if (
+          !products[product.id]
+        ) {
+
+          products[product.id] = {
+
+            id:
+              product.id,
+
+            name:
+              product.name,
+
+            prices: []
+
+          };
+
+        }
+
+
+        /*
+         * Add the Stripe Price.
+         */
+
+        products[product.id].prices.push({
+
+          id:
+            price.id,
+
+          amount:
+            price.unit_amount,
+
+          currency:
+            price.currency,
+
+          interval:
+            price.recurring.interval
+
+        });
+
+      });
+
+
+      /*
+       * Convert object into array.
+       */
+
+      const productList =
+        Object.values(
+          products
+        );
+
+
+      /*
+       * Sort prices from cheapest
+       * to most expensive.
+       */
+
+      productList.forEach(product => {
+
+        product.prices.sort(
+          (a, b) =>
+            a.amount - b.amount
+        );
+
+      });
+
+
+      /*
+       * Don't show Products that have
+       * no active monthly prices.
+       */
+
+      const filteredProducts =
+        productList.filter(
+          product =>
+            product.prices.length > 0
+        );
+
+
+      console.log(
+        "Donation options loaded from Stripe:"
+      );
+
+      console.log(
+        JSON.stringify(
+          filteredProducts,
+          null,
+          2
+        )
+      );
+
+
+      return res.json({
+
+        products:
+          filteredProducts
+
+      });
+
+
+    } catch (err) {
+
+      console.error(
+        "DONATION OPTIONS ERROR:",
+        err
+      );
+
+
+      return res
+        .status(500)
+        .json({
+
+          error:
+            "Could not load donation options."
+
+        });
+
+    }
+
+  }
+);
+
 
 /* =========================================================
    CREATE MONTHLY DONATION PAYMENT SETUP
