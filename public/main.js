@@ -62,6 +62,23 @@ const inputs =
 
 
 // =============================
+// GET PAYMENT METHOD
+// =============================
+function getPaymentMethod() {
+
+  const selected =
+    document.querySelector(
+      'input[name="payment-method"]:checked'
+    );
+
+  return selected
+    ? selected.value
+    : "card";
+
+}
+
+
+// =============================
 // INPUT RESET
 // =============================
 inputs.forEach(input => {
@@ -129,85 +146,131 @@ function resetStripe() {
 
 
 // =============================
-// SETUP STRIPE
+// GET DONATION DATA
+// =============================
+function getDonationData() {
+
+  const emailInput =
+    form.querySelector(
+      'input[type="email"]'
+    );
+
+  const fullName =
+    document.getElementById(
+      "full-name"
+    ).value;
+
+  const phone =
+    document.getElementById(
+      "phone"
+    ).value;
+
+  const address =
+    document.getElementById(
+      "address"
+    ).value;
+
+  const postcode =
+    document.getElementById(
+      "postcode"
+    ).value;
+
+  const country =
+    document.getElementById(
+      "country"
+    ).value;
+
+  const giftAidChecked =
+    document.getElementById(
+      "gift-aid"
+    ).checked;
+
+
+  const cause =
+    causeSelect.value;
+
+  const donationAmount =
+    Number(
+      amountSelect.value
+    );
+
+  const startDate =
+    Number(
+      startDateSelect.value
+    );
+
+
+  const selectedPriceId =
+    priceMap?.[cause]?.[
+      donationAmount
+    ];
+
+
+  return {
+
+    email:
+      emailInput.value,
+
+    fullName,
+
+    phone,
+
+    address,
+
+    postcode,
+
+    country,
+
+    giftAid:
+      giftAidChecked,
+
+    donationAmount,
+
+    startDate,
+
+    donationCause:
+      cause,
+
+    priceId:
+      selectedPriceId
+
+  };
+
+}
+
+
+// =============================
+// SETUP CARD PAYMENT
+// =============================
+// This is your existing working
+// card payment flow.
 // =============================
 async function setupStripe() {
 
   try {
 
-    const emailInput =
-      form.querySelector(
-        'input[type="email"]'
-      );
-
-    const fullName =
-      document.getElementById(
-        "full-name"
-      ).value;
-
-    const phone =
-      document.getElementById(
-        "phone"
-      ).value;
-
-    const country =
-      document.getElementById(
-        "country"
-      ).value;
-
-    const giftAidChecked =
-      document.getElementById(
-        "gift-aid"
-      ).checked;
-
-
-    // =============================
-    // CURRENT SELECTIONS
-    // =============================
-
-    const cause =
-      causeSelect.value;
-
-    const donationAmount =
-      Number(
-        amountSelect.value
-      );
-
-    const startDate =
-      Number(
-        startDateSelect.value
-      );
+    const donationData =
+      getDonationData();
 
 
     console.log(
       "Selected cause:",
-      cause
+      donationData.donationCause
     );
 
     console.log(
       "Selected amount:",
-      donationAmount
+      donationData.donationAmount
     );
 
     console.log(
       "Selected start date:",
-      startDate
+      donationData.startDate
     );
-
-
-    // =============================
-    // PRICE LOOKUP
-    // =============================
-
-    const selectedPriceId =
-      priceMap?.[cause]?.[
-        donationAmount
-      ];
-
 
     console.log(
       "Selected price ID:",
-      selectedPriceId
+      donationData.priceId
     );
 
 
@@ -215,7 +278,7 @@ async function setupStripe() {
     // SAFETY CHECK
     // =============================
 
-    if (!selectedPriceId) {
+    if (!donationData.priceId) {
 
       console.error(
         "No price ID found for selection."
@@ -255,23 +318,32 @@ async function setupStripe() {
 
           body: JSON.stringify({
 
-            email: emailInput.value,
+            email:
+              donationData.email,
 
-            priceId: selectedPriceId,
+            priceId:
+              donationData.priceId,
 
-            giftAid: giftAidChecked,
+            giftAid:
+              donationData.giftAid,
 
-            fullName,
+            fullName:
+              donationData.fullName,
 
-            phone,
+            phone:
+              donationData.phone,
 
-            country,
+            country:
+              donationData.country,
 
-            donationAmount,
+            donationAmount:
+              donationData.donationAmount,
 
-            startDate,
+            startDate:
+              donationData.startDate,
 
-            donationCause: cause
+            donationCause:
+              donationData.donationCause
 
           })
 
@@ -401,7 +473,7 @@ async function setupStripe() {
     );
 
     console.log(
-      "Payment form is ready for card details."
+      "Payment form is ready."
     );
 
 
@@ -428,6 +500,8 @@ async function setupStripe() {
 
 // =============================
 // CREATE MONTHLY SUBSCRIPTION
+// =============================
+// Existing working card flow.
 // =============================
 async function createMonthlySubscription() {
 
@@ -592,6 +666,183 @@ async function createMonthlySubscription() {
 
 
 // =============================
+// CREATE BACS CHECKOUT
+// =============================
+// Bacs will use a separate Stripe
+// Checkout flow.
+//
+// IMPORTANT:
+// The backend endpoint for this will
+// be added separately.
+// =============================
+async function createBacsCheckout() {
+
+  try {
+
+    const donationData =
+      getDonationData();
+
+
+    console.log(
+      "Preparing Bacs Direct Debit..."
+    );
+
+    console.log(
+      "Bacs donation data:",
+      donationData
+    );
+
+
+    // =============================
+    // PRICE CHECK
+    // =============================
+
+    if (!donationData.priceId) {
+
+      console.error(
+        "No price ID found for Bacs donation."
+      );
+
+      alert(
+        "We could not find the selected donation price."
+      );
+
+      return;
+
+    }
+
+
+    // =============================
+    // CALL BACS BACKEND
+    // =============================
+
+    const response =
+      await fetch(
+        "https://stripedonationform.onrender.com/create-bacs-checkout-session",
+        {
+
+          method: "POST",
+
+          headers: {
+
+            "Content-Type":
+              "application/json"
+
+          },
+
+          body: JSON.stringify({
+
+            email:
+              donationData.email,
+
+            fullName:
+              donationData.fullName,
+
+            phone:
+              donationData.phone,
+
+            address:
+              donationData.address,
+
+            postcode:
+              donationData.postcode,
+
+            country:
+              donationData.country,
+
+            giftAid:
+              donationData.giftAid,
+
+            donationAmount:
+              donationData.donationAmount,
+
+            startDate:
+              donationData.startDate,
+
+            donationCause:
+              donationData.donationCause,
+
+            priceId:
+              donationData.priceId
+
+          })
+
+        }
+      );
+
+
+    const data =
+      await response.json();
+
+
+    console.log(
+      "Bacs Checkout response:",
+      data
+    );
+
+
+    if (!response.ok) {
+
+      console.error(
+        "Bacs Checkout error:",
+        data.error
+      );
+
+      alert(
+        data.error ||
+        "Something went wrong while preparing Bacs Direct Debit."
+      );
+
+      return;
+
+    }
+
+
+    // =============================
+    // REDIRECT TO STRIPE
+    // =============================
+
+    if (!data.url) {
+
+      console.error(
+        "Stripe Checkout URL missing."
+      );
+
+      alert(
+        "We could not open the Bacs payment page."
+      );
+
+      return;
+
+    }
+
+
+    console.log(
+      "Redirecting to Stripe Checkout..."
+    );
+
+
+    window.location.href =
+      data.url;
+
+
+  } catch (err) {
+
+    console.error(
+      "Bacs Checkout request failed:",
+      err
+    );
+
+    alert(
+      "Something went wrong while preparing Bacs Direct Debit."
+    );
+
+  }
+
+}
+
+
+// =============================
 // FORM SUBMIT
 // =============================
 form.addEventListener(
@@ -601,14 +852,30 @@ form.addEventListener(
     e.preventDefault();
 
 
+    // =============================
+    // CURRENT PAYMENT METHOD
+    // =============================
+
+    const paymentMethod =
+      getPaymentMethod();
+
+
+    console.log(
+      "Selected payment method:",
+      paymentMethod
+    );
+
+
     // =================================================
-    // SECOND CLICK
+    // SECOND CLICK — CARD
     // =================================================
     // Stripe Payment Element is already visible.
-    // The donor has entered their payment details.
-    // Confirm the SetupIntent and create the subscription.
+    // Confirm the SetupIntent and create
+    // the monthly subscription.
+    // =================================================
 
     if (
+      paymentMethod === "card" &&
       paymentReady
     ) {
 
@@ -632,12 +899,9 @@ form.addEventListener(
     }
 
 
-    let valid = true;
-
-
-    // =============================
+    // =================================================
     // RESET ERRORS
-    // =============================
+    // =================================================
 
     inputs.forEach(input => {
 
@@ -648,14 +912,18 @@ form.addEventListener(
     });
 
 
-    // =============================
+    // =================================================
     // REQUIRED INPUTS
-    // =============================
+    // =================================================
+
+    let valid = true;
+
 
     inputs.forEach(input => {
 
       if (
         input.type !== "checkbox" &&
+        input.type !== "radio" &&
         !input.value.trim()
       ) {
 
@@ -670,9 +938,9 @@ form.addEventListener(
     });
 
 
-    // =============================
+    // =================================================
     // EMAIL VALIDATION
-    // =============================
+    // =================================================
 
     const emailInput =
       form.querySelector(
@@ -694,9 +962,9 @@ form.addEventListener(
     }
 
 
-    // =============================
+    // =================================================
     // START DATE
-    // =============================
+    // =================================================
 
     if (
       !startDateSelect.value
@@ -711,9 +979,9 @@ form.addEventListener(
     }
 
 
-    // =============================
+    // =================================================
     // STOP IF INVALID
-    // =============================
+    // =================================================
 
     if (!valid) {
 
@@ -726,9 +994,37 @@ form.addEventListener(
     }
 
 
-    // =============================
-    // FIRST CLICK
-    // =============================
+    // =================================================
+    // BACS DIRECT DEBIT
+    // =================================================
+
+    if (
+      paymentMethod === "bacs_debit"
+    ) {
+
+      submitButton.disabled = true;
+
+      submitButton.textContent =
+        "Preparing Bacs Payment...";
+
+
+      await createBacsCheckout();
+
+
+      submitButton.disabled = false;
+
+      submitButton.textContent =
+        "Continue To Payment";
+
+
+      return;
+
+    }
+
+
+    // =================================================
+    // CARD — FIRST CLICK
+    // =================================================
 
     submitButton.disabled = true;
 
@@ -760,10 +1056,6 @@ form.addEventListener(
     console.log(
       "Stripe is ready."
     );
-
-
-    // The button text is changed
-    // inside setupStripe().
 
   }
 );
