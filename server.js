@@ -98,7 +98,8 @@ app.post("/create-subscription", async (req, res) => {
       phone,
       country,
       donationAmount,
-      startDate
+      startDate,
+      donationCause
     } = req.body;
 
     console.log("================================");
@@ -106,6 +107,7 @@ app.post("/create-subscription", async (req, res) => {
     console.log("Email:", email);
     console.log("Amount:", donationAmount);
     console.log("Start date:", startDate);
+    console.log("Cause:", donationCause);
     console.log("================================");
 
     /* =====================================================
@@ -122,7 +124,8 @@ app.post("/create-subscription", async (req, res) => {
       },
 
       metadata: {
-        giftAid: giftAid ? "yes" : "no"
+        giftAid: giftAid ? "yes" : "no",
+        donationCause: donationCause || ""
       }
     });
 
@@ -170,6 +173,7 @@ app.post("/create-subscription", async (req, res) => {
         donationAmount: String(donationAmount),
         billingDay: String(billingDay),
         giftAid: giftAid ? "yes" : "no",
+        donationCause: donationCause || "",
         priceId
       }
     });
@@ -291,8 +295,7 @@ app.post(
          proration_behavior: "none" prevents the initial
          partial-period charge.
 
-         CARD-ONLY for the actual subscription while we
-         leave Bacs investigation for later.
+         Payment methods are not manually restricted here.
          ===================================================== */
 
       const subscription =
@@ -314,15 +317,6 @@ app.post(
           },
 
           proration_behavior: "none",
-
-          payment_settings: {
-            payment_method_types: [
-              "card"
-            ],
-
-            save_default_payment_method:
-              "on_subscription"
-          },
 
           metadata: {
             donationType: "monthly",

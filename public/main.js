@@ -255,14 +255,11 @@ async function setupStripe() {
 
           body: JSON.stringify({
 
-            email:
-              emailInput.value,
+            email: emailInput.value,
 
-            priceId:
-              selectedPriceId,
+            priceId: selectedPriceId,
 
-            giftAid:
-              giftAidChecked,
+            giftAid: giftAidChecked,
 
             fullName,
 
@@ -272,7 +269,9 @@ async function setupStripe() {
 
             donationAmount,
 
-            startDate
+            startDate,
+
+            donationCause: cause
 
           })
 
