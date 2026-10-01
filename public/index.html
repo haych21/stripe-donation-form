@@ -16,10 +16,6 @@
 
   <main class="checkout-container">
 
-    <!-- =========================
-         LEFT SIDE
-    ========================== -->
-
     <section class="donation-summary">
 
       <h1>Monthly Donation</h1>
@@ -28,18 +24,13 @@
 
         <p class="label">Product</p>
 
-        <select id="cause-select">
+        <select
+          id="cause-select"
+          autocomplete="off"
+        >
 
-          <option value="Palestine Emergency Aid">
-            Palestine Emergency Aid
-          </option>
-
-          <option value="Clean Water">
-            Clean Water
-          </option>
-
-          <option value="Food Relief">
-            Food Relief
+          <option value="" selected disabled>
+            Select a cause
           </option>
 
         </select>
@@ -47,26 +38,17 @@
 
         <p class="label">Donation Amount</p>
 
-        <select id="donation-amount">
+        <select
+          id="donation-amount"
+          autocomplete="off"
+        >
 
-          <option value="5">
-            £5
-          </option>
-
-          <option value="10">
-            £10
-          </option>
-
-          <option value="15" selected>
-            £15
+          <option value="" selected disabled>
+            Select an amount
           </option>
 
         </select>
 
-
-        <!-- =========================
-             PREFERRED START DATE
-        ========================== -->
 
         <p class="label">
           Preferred Start Date
@@ -111,19 +93,11 @@
     </section>
 
 
-    <!-- =========================
-         RIGHT SIDE
-    ========================== -->
-
     <section class="checkout-form">
 
       <h2>Donor Information</h2>
 
-      <form>
-
-        <!-- =========================
-             FULL NAME
-        ========================== -->
+      <form autocomplete="off">
 
         <div class="input-group">
 
@@ -140,10 +114,6 @@
         </div>
 
 
-        <!-- =========================
-             EMAIL
-        ========================== -->
-
         <div class="input-group">
 
           <label for="email">
@@ -158,10 +128,6 @@
 
         </div>
 
-
-        <!-- =========================
-             PHONE
-        ========================== -->
 
         <div class="input-group">
 
@@ -178,10 +144,6 @@
         </div>
 
 
-        <!-- =========================
-             ADDRESS
-        ========================== -->
-
         <div class="input-group">
 
           <label for="address">
@@ -196,10 +158,6 @@
 
         </div>
 
-
-        <!-- =========================
-             POSTCODE
-        ========================== -->
 
         <div class="input-group">
 
@@ -216,10 +174,6 @@
         </div>
 
 
-        <!-- =========================
-             COUNTRY
-        ========================== -->
-
         <div class="input-group">
 
           <label for="country">
@@ -234,10 +188,6 @@
 
         </div>
 
-
-        <!-- =========================
-             PAYMENT METHOD
-        ========================== -->
 
         <div class="payment-method">
 
@@ -282,20 +232,12 @@
         </div>
 
 
-        <!-- =========================
-             STRIPE PAYMENT ELEMENT
-        ========================== -->
-
         <div class="payment-placeholder">
 
           <div id="payment-element"></div>
 
         </div>
 
-
-        <!-- =========================
-             GIFT AID
-        ========================== -->
 
         <div class="gift-aid">
 
@@ -311,10 +253,6 @@
         </div>
 
 
-        <!-- =========================
-             BUTTON
-        ========================== -->
-
         <button type="submit">
           Continue To Payment
         </button>
@@ -325,10 +263,6 @@
 
   </main>
 
-
-  <!-- =========================
-       JAVASCRIPT
-  ========================== -->
 
   <script src="main.js"></script>
 
