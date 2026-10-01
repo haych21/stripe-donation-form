@@ -3,7 +3,7 @@
 // =============================
 
 const stripe = Stripe(
-  "pk_test_51TYkg6EPmNke8msB4Yvsmr1Wg12tWt8DDu23mv12X1WuV2T0WvoZwUDLzuldsSa73v1jVMwwrNx1TkXGq3fSmKdb00YBQ7YEJC"
+  "pk_live_51SiKvVCAoHPyyMUZQyt8UANqZEEpXnn5fFehtcCzeVeu58ISRfRncPZNRpseByTp7NS5AHzyAnSW7YptWGM5MwBd00AK3pD3vB"
 );
 
 console.log("JS is connected and running");
