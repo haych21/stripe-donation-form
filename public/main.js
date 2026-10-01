@@ -8,7 +8,6 @@ const stripe = Stripe(
 
 console.log("JS is connected and running");
 
-
 // =============================
 // API URL
 // =============================
@@ -33,7 +32,6 @@ console.log(
   API_URL
 );
 
-
 // =============================
 // STRIPE VARIABLES
 // =============================
@@ -44,7 +42,6 @@ let paymentElement = null;
 let monthlySetupData = null;
 
 let paymentReady = false;
-
 
 // =============================
 // STRIPE DONATION OPTIONS
@@ -60,7 +57,6 @@ let paymentReady = false;
 let priceMap = {};
 
 let donationOptionsReady = false;
-
 
 // =============================
 // GET ELEMENTS
@@ -86,7 +82,6 @@ const submitButton =
 const inputs =
   document.querySelectorAll("input");
 
-
 // =============================
 // PAYMENT ELEMENT CONTAINER
 // =============================
@@ -95,7 +90,6 @@ const paymentPlaceholder =
   document.querySelector(
     ".payment-placeholder"
   );
-
 
 // =============================
 // GET PAYMENT METHOD
@@ -114,7 +108,6 @@ function getPaymentMethod() {
 
 }
 
-
 // =============================
 // SHOW / HIDE PAYMENT ELEMENT
 // =============================
@@ -124,13 +117,11 @@ function updatePaymentMethodUI() {
   const paymentMethod =
     getPaymentMethod();
 
-
   if (!paymentPlaceholder) {
 
     return;
 
   }
-
 
   // =============================
   // BACS
@@ -143,18 +134,14 @@ function updatePaymentMethodUI() {
     paymentPlaceholder.style.display =
       "none";
 
-
     resetStripe(false);
-
 
     submitButton.textContent =
       "Continue To Payment";
 
-
     return;
 
   }
-
 
   // =============================
   // CARD
@@ -163,14 +150,12 @@ function updatePaymentMethodUI() {
   paymentPlaceholder.style.display =
     "";
 
-
   submitButton.textContent =
     paymentReady
       ? "Start Monthly Donation"
       : "Continue To Payment";
 
 }
-
 
 // =============================
 // PAYMENT METHOD CHANGE
@@ -180,7 +165,6 @@ const paymentMethodInputs =
   document.querySelectorAll(
     'input[name="payment-method"]'
   );
-
 
 paymentMethodInputs.forEach(
   input => {
@@ -194,9 +178,7 @@ paymentMethodInputs.forEach(
           input.value
         );
 
-
         resetStripe(false);
-
 
         updatePaymentMethodUI();
 
@@ -205,7 +187,6 @@ paymentMethodInputs.forEach(
 
   }
 );
-
 
 // =============================
 // INPUT RESET
@@ -226,7 +207,6 @@ inputs.forEach(input => {
 
 });
 
-
 // =============================
 // START DATE RESET
 // =============================
@@ -241,7 +221,6 @@ startDateSelect.addEventListener(
 
   }
 );
-
 
 // =============================
 // RESET STRIPE
@@ -259,26 +238,22 @@ function resetStripe(
 
   }
 
-
   elements = null;
 
   monthlySetupData = null;
 
   paymentReady = false;
 
-
   const paymentContainer =
     document.getElementById(
       "payment-element"
     );
-
 
   if (paymentContainer) {
 
     paymentContainer.innerHTML = "";
 
   }
-
 
   if (
     resetButtonText &&
@@ -291,7 +266,6 @@ function resetStripe(
   }
 
 }
-
 
 // =============================
 // LOAD DONATION OPTIONS
@@ -310,7 +284,6 @@ async function loadDonationOptions() {
       "Loading donation options from Stripe..."
     );
 
-
     // =============================
     // DISABLE DROPDOWNS WHILE LOADING
     // =============================
@@ -321,7 +294,6 @@ async function loadDonationOptions() {
     amountSelect.disabled =
       true;
 
-
     // =============================
     // GET DATA FROM BACKEND
     // =============================
@@ -331,16 +303,13 @@ async function loadDonationOptions() {
         `${API_URL}/donation-options`
       );
 
-
     const data =
       await response.json();
-
 
     console.log(
       "Donation options response:",
       data
     );
-
 
     if (!response.ok) {
 
@@ -351,13 +320,11 @@ async function loadDonationOptions() {
 
     }
 
-
     // =============================
     // RESET LOCAL PRICE MAP
     // =============================
 
     priceMap = {};
-
 
     // =============================
     // RESET CAUSE DROPDOWN
@@ -369,7 +336,6 @@ async function loadDonationOptions() {
       </option>
     `;
 
-
     // =============================
     // RESET AMOUNT DROPDOWN
     // =============================
@@ -379,7 +345,6 @@ async function loadDonationOptions() {
         Select an amount
       </option>
     `;
-
 
     // =============================
     // ADD PRODUCTS
@@ -393,19 +358,15 @@ async function loadDonationOptions() {
             "option"
           );
 
-
         productOption.value =
           product.name;
-
 
         productOption.textContent =
           product.name;
 
-
         causeSelect.appendChild(
           productOption
         );
-
 
         // =============================
         // CREATE PRODUCT PRICE MAP
@@ -414,7 +375,6 @@ async function loadDonationOptions() {
         priceMap[
           product.name
         ] = {};
-
 
         // =============================
         // ADD PRICES
@@ -426,7 +386,6 @@ async function loadDonationOptions() {
             const amount =
               price.amount / 100;
 
-
             priceMap[
               product.name
             ][amount] =
@@ -437,7 +396,6 @@ async function loadDonationOptions() {
 
       }
     );
-
 
     // =============================
     // IMPORTANT:
@@ -455,7 +413,6 @@ async function loadDonationOptions() {
     amountSelect.selectedIndex =
       0;
 
-
     // =============================
     // ENABLE CAUSE DROPDOWN
     // =============================
@@ -463,13 +420,11 @@ async function loadDonationOptions() {
     causeSelect.disabled =
       false;
 
-
     // Amount stays disabled until
     // a cause is selected.
 
     amountSelect.disabled =
       true;
-
 
     // =============================
     // READY
@@ -478,17 +433,14 @@ async function loadDonationOptions() {
     donationOptionsReady =
       true;
 
-
     console.log(
       "Donation options successfully loaded."
     );
-
 
     console.log(
       "Dynamic price map:",
       priceMap
     );
-
 
   } catch (err) {
 
@@ -497,10 +449,8 @@ async function loadDonationOptions() {
       err
     );
 
-
     donationOptionsReady =
       false;
-
 
     // =============================
     // SHOW ERROR IN DROPDOWNS
@@ -512,20 +462,17 @@ async function loadDonationOptions() {
       </option>
     `;
 
-
     amountSelect.innerHTML = `
       <option value="">
         Unable to load amounts
       </option>
     `;
 
-
     causeSelect.disabled =
       true;
 
     amountSelect.disabled =
       true;
-
 
     alert(
       "We could not load the available donation options. Please refresh the page and try again."
@@ -534,7 +481,6 @@ async function loadDonationOptions() {
   }
 
 }
-
 
 // =============================
 // CAUSE CHANGE
@@ -550,7 +496,6 @@ causeSelect.addEventListener(
     const selectedCause =
       causeSelect.value;
 
-
     // =============================
     // RESET AMOUNT DROPDOWN
     // =============================
@@ -560,7 +505,6 @@ causeSelect.addEventListener(
         Select an amount
       </option>
     `;
-
 
     // =============================
     // CHECK PRODUCT
@@ -574,11 +518,9 @@ causeSelect.addEventListener(
       amountSelect.disabled =
         true;
 
-
       return;
 
     }
-
 
     // =============================
     // GET PRODUCT PRICES
@@ -586,7 +528,6 @@ causeSelect.addEventListener(
 
     const prices =
       priceMap[selectedCause];
-
 
     // =============================
     // SORT PRICES
@@ -606,14 +547,11 @@ causeSelect.addEventListener(
               "option"
             );
 
-
           option.value =
             amount;
 
-
           option.textContent =
             `£${amount} / month`;
-
 
           amountSelect.appendChild(
             option
@@ -621,7 +559,6 @@ causeSelect.addEventListener(
 
         }
       );
-
 
     // =============================
     // ENABLE AMOUNT DROPDOWN
@@ -633,13 +570,11 @@ causeSelect.addEventListener(
   }
 );
 
-
 // =============================
 // INITIAL PAYMENT UI
 // =============================
 
 updatePaymentMethodUI();
-
 
 // =============================
 // GET DONATION DATA
@@ -652,58 +587,48 @@ function getDonationData() {
       'input[type="email"]'
     );
 
-
   const fullName =
     document.getElementById(
       "full-name"
     ).value;
-
 
   const phone =
     document.getElementById(
       "phone"
     ).value;
 
-
   const address =
     document.getElementById(
       "address"
     ).value;
-
 
   const postcode =
     document.getElementById(
       "postcode"
     ).value;
 
-
   const country =
     document.getElementById(
       "country"
     ).value;
-
 
   const giftAidChecked =
     document.getElementById(
       "gift-aid"
     ).checked;
 
-
   const cause =
     causeSelect.value;
-
 
   const donationAmount =
     Number(
       amountSelect.value
     );
 
-
   const startDate =
     Number(
       startDateSelect.value
     );
-
 
   // =============================
   // GET DYNAMIC STRIPE PRICE ID
@@ -713,7 +638,6 @@ function getDonationData() {
     priceMap?.[cause]?.[
       donationAmount
     ];
-
 
   return {
 
@@ -747,7 +671,6 @@ function getDonationData() {
 
 }
 
-
 // =============================
 // SETUP CARD PAYMENT
 // =============================
@@ -759,30 +682,25 @@ async function setupStripe() {
     const donationData =
       getDonationData();
 
-
     console.log(
       "Selected cause:",
       donationData.donationCause
     );
-
 
     console.log(
       "Selected amount:",
       donationData.donationAmount
     );
 
-
     console.log(
       "Selected start date:",
       donationData.startDate
     );
 
-
     console.log(
       "Selected price ID:",
       donationData.priceId
     );
-
 
     // =============================
     // SAFETY CHECK
@@ -794,23 +712,19 @@ async function setupStripe() {
         "No price ID found for selection."
       );
 
-
       alert(
         "We could not find the selected donation price."
       );
 
-
       return false;
 
     }
-
 
     // =============================
     // RESET OLD STRIPE ELEMENTS
     // =============================
 
     resetStripe();
-
 
     // =============================
     // SEND TO BACKEND
@@ -866,16 +780,13 @@ async function setupStripe() {
         }
       );
 
-
     const data =
       await res.json();
-
 
     console.log(
       "Backend response:",
       data
     );
-
 
     if (!res.ok) {
 
@@ -884,17 +795,14 @@ async function setupStripe() {
         data.error
       );
 
-
       alert(
         data.error ||
         "Something went wrong."
       );
 
-
       return false;
 
     }
-
 
     // =============================
     // MONTHLY PAYMENT SETUP
@@ -908,16 +816,13 @@ async function setupStripe() {
         "Unexpected Stripe response."
       );
 
-
       alert(
         "Something went wrong while setting up your monthly donation."
       );
 
-
       return false;
 
     }
-
 
     if (
       !data.setupClientSecret
@@ -927,11 +832,9 @@ async function setupStripe() {
         "Missing SetupIntent client secret."
       );
 
-
       return false;
 
     }
-
 
     // =============================
     // SAVE MONTHLY SETUP DATA
@@ -953,7 +856,6 @@ async function setupStripe() {
 
     };
 
-
     // =============================
     // CREATE STRIPE ELEMENTS
     // =============================
@@ -966,17 +868,14 @@ async function setupStripe() {
 
       });
 
-
     paymentElement =
       elements.create(
         "payment"
       );
 
-
     paymentElement.mount(
       "#payment-element"
     );
-
 
     // =============================
     // PAYMENT READY
@@ -985,23 +884,18 @@ async function setupStripe() {
     paymentReady =
       true;
 
-
     submitButton.textContent =
       "Start Monthly Donation";
-
 
     console.log(
       "Payment Element mounted for monthly setup."
     );
 
-
     console.log(
       "Payment form is ready."
     );
 
-
     return true;
-
 
   } catch (err) {
 
@@ -1010,18 +904,15 @@ async function setupStripe() {
       err
     );
 
-
     alert(
       "Something went wrong while setting up the payment."
     );
-
 
     return false;
 
   }
 
 }
-
 
 // =============================
 // CREATE MONTHLY SUBSCRIPTION
@@ -1034,7 +925,6 @@ async function createMonthlySubscription() {
     console.log(
       "Saving payment method..."
     );
-
 
     const {
       error,
@@ -1056,7 +946,6 @@ async function createMonthlySubscription() {
 
       });
 
-
     if (error) {
 
       console.error(
@@ -1064,27 +953,22 @@ async function createMonthlySubscription() {
         error.message
       );
 
-
       alert(
         error.message
       );
-
 
       return;
 
     }
 
-
     console.log(
       "Payment method saved."
     );
-
 
     console.log(
       "SetupIntent:",
       setupIntent
     );
-
 
     // =============================
     // CREATE MONTHLY SUBSCRIPTION
@@ -1093,7 +977,6 @@ async function createMonthlySubscription() {
     console.log(
       "Creating monthly subscription..."
     );
-
 
     const response =
       await fetch(
@@ -1130,16 +1013,13 @@ async function createMonthlySubscription() {
         }
       );
 
-
     const data =
       await response.json();
-
 
     console.log(
       "Subscription response:",
       data
     );
-
 
     if (!response.ok) {
 
@@ -1148,29 +1028,24 @@ async function createMonthlySubscription() {
         data.error
       );
 
-
       alert(
         data.error ||
         "Could not create your monthly donation."
       );
 
-
       return;
 
     }
-
 
     console.log(
       "Monthly subscription created:",
       data.subscriptionId
     );
 
-
     console.log(
       "Subscription status:",
       data.status
     );
-
 
     // =============================
     // SUCCESS
@@ -1179,7 +1054,6 @@ async function createMonthlySubscription() {
     alert(
       "Your monthly donation has been set up successfully 🎉"
     );
-
 
     // =============================
     // REDIRECT BACK TO FORM
@@ -1190,14 +1064,12 @@ async function createMonthlySubscription() {
     window.location.href =
       "/";
 
-
   } catch (err) {
 
     console.error(
       "Subscription request failed:",
       err
     );
-
 
     alert(
       "Something went wrong while creating your monthly donation."
@@ -1206,7 +1078,6 @@ async function createMonthlySubscription() {
   }
 
 }
-
 
 // =============================
 // CREATE BACS CHECKOUT
@@ -1219,17 +1090,14 @@ async function createBacsCheckout() {
     const donationData =
       getDonationData();
 
-
     console.log(
       "Preparing Bacs Direct Debit..."
     );
-
 
     console.log(
       "Bacs donation data:",
       donationData
     );
-
 
     // =============================
     // PRICE CHECK
@@ -1241,16 +1109,13 @@ async function createBacsCheckout() {
         "No price ID found for Bacs donation."
       );
 
-
       alert(
         "We could not find the selected donation price."
       );
 
-
       return;
 
     }
-
 
     // =============================
     // CALL BACS BACKEND
@@ -1312,16 +1177,13 @@ async function createBacsCheckout() {
         }
       );
 
-
     const data =
       await response.json();
-
 
     console.log(
       "Bacs Checkout response:",
       data
     );
-
 
     if (!response.ok) {
 
@@ -1330,17 +1192,14 @@ async function createBacsCheckout() {
         data.error
       );
 
-
       alert(
         data.error ||
         "Something went wrong while preparing Bacs Direct Debit."
       );
 
-
       return;
 
     }
-
 
     // =============================
     // REDIRECT TO STRIPE
@@ -1352,25 +1211,20 @@ async function createBacsCheckout() {
         "Stripe Checkout URL missing."
       );
 
-
       alert(
         "We could not open the Bacs payment page."
       );
-
 
       return;
 
     }
 
-
     console.log(
       "Redirecting to Stripe Checkout..."
     );
 
-
     window.location.href =
       data.url;
-
 
   } catch (err) {
 
@@ -1379,7 +1233,6 @@ async function createBacsCheckout() {
       err
     );
 
-
     alert(
       "Something went wrong while preparing Bacs Direct Debit."
     );
@@ -1387,7 +1240,6 @@ async function createBacsCheckout() {
   }
 
 }
-
 
 // =============================
 // FORM SUBMIT
@@ -1398,7 +1250,6 @@ form.addEventListener(
   async (e) => {
 
     e.preventDefault();
-
 
     // =============================
     // MAKE SURE STRIPE OPTIONS
@@ -1413,11 +1264,9 @@ form.addEventListener(
         "Donation options are still loading. Please try again in a moment."
       );
 
-
       return;
 
     }
-
 
     // =============================
     // CURRENT PAYMENT METHOD
@@ -1426,12 +1275,10 @@ form.addEventListener(
     const paymentMethod =
       getPaymentMethod();
 
-
     console.log(
       "Selected payment method:",
       paymentMethod
     );
-
 
     // =================================================
     // SECOND CLICK — CARD
@@ -1445,26 +1292,20 @@ form.addEventListener(
       submitButton.disabled =
         true;
 
-
       submitButton.textContent =
         "Processing...";
 
-
       await createMonthlySubscription();
-
 
       submitButton.disabled =
         false;
 
-
       submitButton.textContent =
         "Start Monthly Donation";
-
 
       return;
 
     }
-
 
     // =================================================
     // RESET ERRORS
@@ -1478,14 +1319,12 @@ form.addEventListener(
 
     });
 
-
     // =================================================
     // REQUIRED INPUTS
     // =================================================
 
     let valid =
       true;
-
 
     inputs.forEach(input => {
 
@@ -1499,14 +1338,12 @@ form.addEventListener(
           "input-error"
         );
 
-
         valid =
           false;
 
       }
 
     });
-
 
     // =================================================
     // EMAIL VALIDATION
@@ -1517,7 +1354,6 @@ form.addEventListener(
         'input[type="email"]'
       );
 
-
     if (
       emailInput &&
       !emailInput.value.includes("@")
@@ -1527,12 +1363,10 @@ form.addEventListener(
         "input-error"
       );
 
-
       valid =
         false;
 
     }
-
 
     // =================================================
     // START DATE
@@ -1546,12 +1380,10 @@ form.addEventListener(
         "input-error"
       );
 
-
       valid =
         false;
 
     }
-
 
     // =================================================
     // STOP IF INVALID
@@ -1563,11 +1395,9 @@ form.addEventListener(
         "Form validation failed."
       );
 
-
       return;
 
     }
-
 
     // =================================================
     // BACS DIRECT DEBIT
@@ -1580,26 +1410,20 @@ form.addEventListener(
       submitButton.disabled =
         true;
 
-
       submitButton.textContent =
         "Preparing Bacs Payment...";
 
-
       await createBacsCheckout();
-
 
       submitButton.disabled =
         false;
 
-
       submitButton.textContent =
         "Continue To Payment";
-
 
       return;
 
     }
-
 
     // =================================================
     // CARD — FIRST CLICK
@@ -1608,18 +1432,14 @@ form.addEventListener(
     submitButton.disabled =
       true;
 
-
     submitButton.textContent =
       "Preparing Payment...";
-
 
     const ready =
       await setupStripe();
 
-
     submitButton.disabled =
       false;
-
 
     if (!ready) {
 
@@ -1627,15 +1447,12 @@ form.addEventListener(
         "Stripe setup failed."
       );
 
-
       submitButton.textContent =
         "Continue To Payment";
-
 
       return;
 
     }
-
 
     console.log(
       "Stripe is ready."
@@ -1643,7 +1460,6 @@ form.addEventListener(
 
   }
 );
-
 
 // =============================
 // LOAD STRIPE DONATION OPTIONS

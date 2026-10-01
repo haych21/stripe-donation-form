@@ -13,13 +13,11 @@ const stripe = require("stripe")(
 
 const app = express();
 
-
 /* =========================================================
    CORS
    ========================================================= */
 
 app.use(cors());
-
 
 /* =========================================================
    STRIPE WEBHOOK
@@ -82,7 +80,6 @@ app.post(
       "================================"
     );
 
-
     try {
 
       /* =====================================================
@@ -121,7 +118,6 @@ app.post(
           "SetupIntent:",
           session.setup_intent
         );
-
 
         /*
          * Only process our Bacs setup sessions.
@@ -170,7 +166,6 @@ app.post(
                 metadata.billingDay
               );
 
-
             if (!customerId) {
 
               throw new Error(
@@ -207,7 +202,6 @@ app.post(
 
             }
 
-
             /* =================================================
                RETRIEVE SETUP INTENT
                ================================================= */
@@ -217,12 +211,10 @@ app.post(
                 setupIntentId
               );
 
-
             console.log(
               "Bacs SetupIntent status:",
               setupIntent.status
             );
-
 
             if (
               setupIntent.status !==
@@ -235,7 +227,6 @@ app.post(
 
             }
 
-
             if (
               !setupIntent.payment_method
             ) {
@@ -246,10 +237,8 @@ app.post(
 
             }
 
-
             const paymentMethodId =
               setupIntent.payment_method;
-
 
             /*
              * Retrieve the PaymentMethod so we
@@ -261,12 +250,10 @@ app.post(
                 paymentMethodId
               );
 
-
             console.log(
               "Payment method type:",
               paymentMethod.type
             );
-
 
             if (
               paymentMethod.type !==
@@ -278,7 +265,6 @@ app.post(
               );
 
             }
-
 
             /* =================================================
                PREVENT DUPLICATE SUBSCRIPTIONS
@@ -296,7 +282,6 @@ app.post(
                 limit: 100
               });
 
-
             const existingSubscription =
               existingSubscriptions.data.find(
                 subscription =>
@@ -305,7 +290,6 @@ app.post(
                     .bacsSetupIntentId ===
                     setupIntentId
               );
-
 
             if (
               existingSubscription
@@ -318,7 +302,6 @@ app.post(
 
             } else {
 
-
               /* ===============================================
                  CREATE MONTHLY BACS SUBSCRIPTION
                  =============================================== */
@@ -326,7 +309,6 @@ app.post(
               console.log(
                 "Creating monthly Bacs subscription..."
               );
-
 
               const subscription =
                 await stripe.subscriptions.create({
@@ -395,7 +377,6 @@ app.post(
 
                 });
 
-
               console.log(
                 "================================"
               );
@@ -426,7 +407,6 @@ app.post(
 
       }
 
-
       /* =====================================================
          NORMAL CARD / SUBSCRIPTION WEBHOOKS
          ===================================================== */
@@ -441,7 +421,6 @@ app.post(
 
           break;
 
-
         case "invoice.payment_failed":
 
           console.log(
@@ -449,7 +428,6 @@ app.post(
           );
 
           break;
-
 
         case "customer.subscription.created":
 
@@ -459,7 +437,6 @@ app.post(
 
           break;
 
-
         case "customer.subscription.updated":
 
           console.log(
@@ -467,7 +444,6 @@ app.post(
           );
 
           break;
-
 
         case "customer.subscription.deleted":
 
@@ -477,7 +453,6 @@ app.post(
 
           break;
 
-
         case "setup_intent.succeeded":
 
           console.log(
@@ -486,7 +461,6 @@ app.post(
 
           break;
 
-
         case "checkout.session.completed":
 
           /*
@@ -494,7 +468,6 @@ app.post(
            */
 
           break;
-
 
         default:
 
@@ -505,7 +478,6 @@ app.post(
 
       }
 
-
       /*
        * Tell Stripe the webhook was successfully processed.
        */
@@ -513,7 +485,6 @@ app.post(
       return res.json({
         received: true
       });
-
 
     } catch (err) {
 
@@ -538,7 +509,6 @@ app.post(
   }
 );
 
-
 /* =========================================================
    NORMAL JSON ROUTES
    ========================================================= */
@@ -550,7 +520,6 @@ app.use(
 app.use(
   express.static("public")
 );
-
 
 /* =========================================================
    GET ACTIVE DONATION PRODUCTS + MONTHLY PRICES
@@ -586,15 +555,12 @@ app.get(
 
         });
 
-
       const products = {};
-
 
       prices.data.forEach(price => {
 
         const product =
           price.product;
-
 
         if (
           !product ||
@@ -605,7 +571,6 @@ app.get(
 
         }
 
-
         if (
           !product.active
         ) {
@@ -613,7 +578,6 @@ app.get(
           return;
 
         }
-
 
         if (
           !price.recurring ||
@@ -624,7 +588,6 @@ app.get(
           return;
 
         }
-
 
         if (
           !products[product.id]
@@ -644,7 +607,6 @@ app.get(
 
         }
 
-
         products[product.id].prices.push({
 
           id:
@@ -663,12 +625,10 @@ app.get(
 
       });
 
-
       const productList =
         Object.values(
           products
         );
-
 
       productList.forEach(product => {
 
@@ -679,13 +639,11 @@ app.get(
 
       });
 
-
       const filteredProducts =
         productList.filter(
           product =>
             product.prices.length > 0
         );
-
 
       console.log(
         "Donation options loaded from Stripe:"
@@ -699,7 +657,6 @@ app.get(
         )
       );
 
-
       return res.json({
 
         products:
@@ -707,14 +664,12 @@ app.get(
 
       });
 
-
     } catch (err) {
 
       console.error(
         "DONATION OPTIONS ERROR:",
         err
       );
-
 
       return res
         .status(500)
@@ -729,7 +684,6 @@ app.get(
 
   }
 );
-
 
 /* =========================================================
    CREATE MONTHLY DONATION PAYMENT SETUP
@@ -753,7 +707,6 @@ app.post(
         startDate,
         donationCause
       } = req.body;
-
 
       console.log(
         "================================"
@@ -787,7 +740,6 @@ app.post(
         "================================"
       );
 
-
       /* =====================================================
          CREATE CUSTOMER
          ===================================================== */
@@ -820,12 +772,10 @@ app.post(
 
         });
 
-
       console.log(
         "Customer created:",
         customer.id
       );
-
 
       /* =====================================================
          VALIDATE BILLING DAY
@@ -833,7 +783,6 @@ app.post(
 
       const billingDay =
         Number(startDate);
-
 
       if (
         ![1, 15, 26].includes(
@@ -850,7 +799,6 @@ app.post(
 
       }
 
-
       /* =====================================================
          VALIDATE PRICE
          ===================================================== */
@@ -865,7 +813,6 @@ app.post(
           });
 
       }
-
 
       /* =====================================================
          CREATE SETUP INTENT
@@ -907,12 +854,10 @@ app.post(
 
         });
 
-
       console.log(
         "SetupIntent created:",
         setupIntent.id
       );
-
 
       return res.json({
 
@@ -934,7 +879,6 @@ app.post(
 
       });
 
-
     } catch (err) {
 
       console.error(
@@ -954,7 +898,6 @@ app.post(
   }
 );
 
-
 /* =========================================================
    CREATE MONTHLY CARD SUBSCRIPTION
    ========================================================= */
@@ -971,7 +914,6 @@ app.post(
         priceId,
         billingDay
       } = req.body;
-
 
       console.log(
         "================================"
@@ -1005,14 +947,12 @@ app.post(
         "================================"
       );
 
-
       /* =====================================================
          VALIDATE BILLING DAY
          ===================================================== */
 
       const validBillingDays =
         [1, 15, 26];
-
 
       if (
         !validBillingDays.includes(
@@ -1029,7 +969,6 @@ app.post(
 
       }
 
-
       /* =====================================================
          RETRIEVE SETUP INTENT
          ===================================================== */
@@ -1038,7 +977,6 @@ app.post(
         await stripe.setupIntents.retrieve(
           setupIntentId
         );
-
 
       if (
         setupIntent.status !==
@@ -1054,7 +992,6 @@ app.post(
 
       }
 
-
       if (
         !setupIntent.payment_method
       ) {
@@ -1067,7 +1004,6 @@ app.post(
           });
 
       }
-
 
       if (
         setupIntent.customer !==
@@ -1083,16 +1019,13 @@ app.post(
 
       }
 
-
       const paymentMethodId =
         setupIntent.payment_method;
-
 
       console.log(
         "Saved payment method:",
         paymentMethodId
       );
-
 
       /* =====================================================
          CREATE CARD SUBSCRIPTION
@@ -1151,18 +1084,15 @@ app.post(
 
         });
 
-
       console.log(
         "Monthly subscription created:",
         subscription.id
       );
 
-
       console.log(
         "Subscription status:",
         subscription.status
       );
-
 
       return res.json({
 
@@ -1176,7 +1106,6 @@ app.post(
           subscription.status
 
       });
-
 
     } catch (err) {
 
@@ -1196,7 +1125,6 @@ app.post(
 
   }
 );
-
 
 /* =========================================================
    CREATE BACS CHECKOUT SESSION
@@ -1221,7 +1149,6 @@ app.post(
         donationCause,
         priceId
       } = req.body;
-
 
       console.log(
         "================================"
@@ -1260,14 +1187,12 @@ app.post(
         "================================"
       );
 
-
       /* =====================================================
          VALIDATE BILLING DAY
          ===================================================== */
 
       const billingDay =
         Number(startDate);
-
 
       if (
         ![1, 15, 26].includes(
@@ -1284,7 +1209,6 @@ app.post(
 
       }
 
-
       /* =====================================================
          VALIDATE PRICE
          ===================================================== */
@@ -1300,7 +1224,6 @@ app.post(
 
       }
 
-
       /* =====================================================
          NORMALISE COUNTRY
          ===================================================== */
@@ -1312,7 +1235,6 @@ app.post(
           .trim()
           .toUpperCase();
 
-
       if (
         stripeCountry ===
         "UNITED KINGDOM"
@@ -1323,7 +1245,6 @@ app.post(
 
       }
 
-
       if (
         stripeCountry ===
         "UK"
@@ -1333,7 +1254,6 @@ app.post(
           "GB";
 
       }
-
 
       if (
         stripeCountry !==
@@ -1348,7 +1268,6 @@ app.post(
           });
 
       }
-
 
       /* =====================================================
          CREATE CUSTOMER
@@ -1404,12 +1323,10 @@ app.post(
 
         });
 
-
       console.log(
         "Bacs customer created:",
         customer.id
       );
-
 
       /* =====================================================
          CREATE STRIPE CHECKOUT SESSION
@@ -1508,7 +1425,6 @@ app.post(
 
           },
 
-
           /* =================================================
              BACS SUCCESS REDIRECT
 
@@ -1528,12 +1444,10 @@ app.post(
 
         });
 
-
       console.log(
         "Bacs Checkout session created:",
         session.id
       );
-
 
       /* =====================================================
          SEND CHECKOUT URL BACK TO FRONTEND
@@ -1551,7 +1465,6 @@ app.post(
           session.id
 
       });
-
 
     } catch (err) {
 
@@ -1572,7 +1485,6 @@ app.post(
   }
 );
 
-
 /* =========================================================
    BACS SUCCESS PAGE
 
@@ -1589,7 +1501,6 @@ app.get(
 
   }
 );
-
 
 /* =========================================================
    BACS CANCELLED PAGE
@@ -1706,7 +1617,6 @@ app.get(
 
   }
 );
-
 
 /* =========================================================
    START SERVER
