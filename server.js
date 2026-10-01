@@ -19,6 +19,323 @@ const app = express();
 
 app.use(cors());
 
+
+/* =========================================================
+   CREATE BACS SUBSCRIPTION FROM SETUP INTENT
+   ========================================================= */
+
+async function createBacsSubscriptionFromSetup(
+  setupIntentId,
+  fallbackMetadata = {}
+) {
+
+  console.log(
+    "Processing Bacs SetupIntent:",
+    setupIntentId
+  );
+
+  /* =======================================================
+     RETRIEVE SETUP INTENT
+     ======================================================= */
+
+  const setupIntent =
+    await stripe.setupIntents.retrieve(
+      setupIntentId
+    );
+
+  console.log(
+    "Bacs SetupIntent status:",
+    setupIntent.status
+  );
+
+  /*
+   * Do not create the subscription until
+   * the SetupIntent has actually succeeded.
+   */
+
+  if (
+    setupIntent.status !==
+    "succeeded"
+  ) {
+
+    console.log(
+      "Bacs SetupIntent is not ready yet. Waiting for Stripe."
+    );
+
+    return {
+      created: false,
+      pending: true,
+      reason:
+        `SetupIntent status is ${setupIntent.status}`
+    };
+
+  }
+
+  /* =======================================================
+     PAYMENT METHOD
+     ======================================================= */
+
+  if (
+    !setupIntent.payment_method
+  ) {
+
+    throw new Error(
+      "Bacs SetupIntent has no payment method."
+    );
+
+  }
+
+  const paymentMethodId =
+    typeof setupIntent.payment_method ===
+      "string"
+      ? setupIntent.payment_method
+      : setupIntent.payment_method.id;
+
+  const paymentMethod =
+    await stripe.paymentMethods.retrieve(
+      paymentMethodId
+    );
+
+  console.log(
+    "Bacs payment method type:",
+    paymentMethod.type
+  );
+
+  if (
+    paymentMethod.type !==
+    "bacs_debit"
+  ) {
+
+    throw new Error(
+      "SetupIntent payment method is not Bacs Direct Debit."
+    );
+
+  }
+
+  /* =======================================================
+     CUSTOMER
+     ======================================================= */
+
+  const customerId =
+    typeof setupIntent.customer === "string"
+      ? setupIntent.customer
+      : setupIntent.customer?.id ||
+        fallbackMetadata.customerId;
+
+  if (!customerId) {
+
+    throw new Error(
+      "Bacs SetupIntent has no customer."
+    );
+
+  }
+
+  /* =======================================================
+     COMBINE METADATA
+     ======================================================= */
+
+  const metadata = {
+
+    ...fallbackMetadata,
+
+    ...(setupIntent.metadata || {})
+
+  };
+
+  /* =======================================================
+     PRICE
+     ======================================================= */
+
+  const priceId =
+    metadata.priceId;
+
+  if (!priceId) {
+
+    throw new Error(
+      "Bacs setup is missing the monthly Price ID."
+    );
+
+  }
+
+  /* =======================================================
+     BILLING DAY
+     ======================================================= */
+
+  const billingDay =
+    Number(
+      metadata.billingDay
+    );
+
+  if (
+    ![1, 15, 26].includes(
+      billingDay
+    )
+  ) {
+
+    throw new Error(
+      "Bacs setup has an invalid billing day."
+    );
+
+  }
+
+  /* =======================================================
+     PREVENT DUPLICATE SUBSCRIPTIONS
+     ======================================================= */
+
+  const existingSubscriptions =
+    await stripe.subscriptions.list({
+
+      customer:
+        customerId,
+
+      status:
+        "all",
+
+      limit:
+        100
+
+    });
+
+  const existingSubscription =
+    existingSubscriptions.data.find(
+      subscription =>
+        subscription.metadata &&
+        subscription.metadata
+          .bacsSetupIntentId ===
+          setupIntentId
+    );
+
+  if (
+    existingSubscription
+  ) {
+
+    console.log(
+      "Bacs subscription already exists:",
+      existingSubscription.id
+    );
+
+    return {
+
+      created:
+        false,
+
+      pending:
+        false,
+
+      subscriptionId:
+        existingSubscription.id
+
+    };
+
+  }
+
+  /* =======================================================
+     CREATE MONTHLY BACS SUBSCRIPTION
+     ======================================================= */
+
+  console.log(
+    "Creating monthly Bacs subscription..."
+  );
+
+  const subscription =
+    await stripe.subscriptions.create({
+
+      customer:
+        customerId,
+
+      items: [
+        {
+          price:
+            priceId
+        }
+      ],
+
+      default_payment_method:
+        paymentMethodId,
+
+      billing_cycle_anchor_config: {
+
+        day_of_month:
+          billingDay
+
+      },
+
+      proration_behavior:
+        "none",
+
+      payment_settings: {
+
+        payment_method_types: [
+          "bacs_debit"
+        ],
+
+        save_default_payment_method:
+          "on_subscription"
+
+      },
+
+      metadata: {
+
+        donationType:
+          "monthly_bacs",
+
+        donationCause:
+          metadata.donationCause ||
+          "",
+
+        donationAmount:
+          metadata.donationAmount ||
+          "",
+
+        billingDay:
+          String(
+            billingDay
+          ),
+
+        giftAid:
+          metadata.giftAid ||
+          "no",
+
+        bacsSetupIntentId:
+          setupIntentId,
+
+        checkoutSessionId:
+          metadata.checkoutSessionId ||
+          ""
+
+      }
+
+    });
+
+  console.log(
+    "BACS SUBSCRIPTION CREATED:",
+    subscription.id
+  );
+
+  console.log(
+    "BACS subscription status:",
+    subscription.status
+  );
+
+  return {
+
+    created:
+      true,
+
+    pending:
+      false,
+
+    subscriptionId:
+      subscription.id,
+
+    status:
+      subscription.status
+
+  };
+
+}
+
+
 /* =========================================================
    STRIPE WEBHOOK
    IMPORTANT:
@@ -56,6 +373,7 @@ app.post(
         .send(
           `Webhook Error: ${err.message}`
         );
+
     }
 
     console.log(
@@ -85,10 +403,18 @@ app.post(
       /* =====================================================
          CHECKOUT SESSION COMPLETED
 
-         This is used for the Bacs setup Checkout.
-         Stripe has collected the mandate/bank details.
-         We then retrieve the SetupIntent and create
-         the recurring subscription.
+         IMPORTANT:
+         This event ONLY confirms that the Bacs
+         Checkout flow completed.
+
+         It DOES NOT create the subscription.
+
+         The subscription is created ONLY by
+         setup_intent.succeeded.
+
+         This prevents the same Bacs subscription
+         from being created twice because both
+         events can fire for the same donation.
          ===================================================== */
 
       if (
@@ -100,318 +426,57 @@ app.post(
           event.data.object;
 
         console.log(
-          "Bacs Checkout completed:",
+          "Checkout session completed:",
           session.id
         );
 
-        console.log(
-          "Checkout mode:",
-          session.mode
-        );
-
-        console.log(
-          "Customer:",
-          session.customer
-        );
-
-        console.log(
-          "SetupIntent:",
-          session.setup_intent
-        );
-
-        /*
-         * Only process our Bacs setup sessions.
-         */
-
         if (
-          session.mode !== "setup"
+          session.mode ===
+          "setup"
         ) {
-
-          console.log(
-            "Not a setup-mode Checkout session."
-          );
-
-        } else {
 
           const metadata =
             session.metadata || {};
 
-          /*
-           * Make sure this is one of our
-           * monthly Bacs donation sessions.
-           */
-
           if (
-            metadata.donationType !==
+            metadata.donationType ===
             "monthly_bacs"
           ) {
 
             console.log(
-              "Not a monthly Bacs donation."
+              "Bacs Checkout completed. Waiting for setup_intent.succeeded."
             );
 
           } else {
 
-            const customerId =
-              session.customer;
-
-            const setupIntentId =
-              session.setup_intent;
-
-            const priceId =
-              metadata.priceId;
-
-            const billingDay =
-              Number(
-                metadata.billingDay
-              );
-
-            if (!customerId) {
-
-              throw new Error(
-                "Bacs Checkout session has no customer."
-              );
-
-            }
-
-            if (!setupIntentId) {
-
-              throw new Error(
-                "Bacs Checkout session has no SetupIntent."
-              );
-
-            }
-
-            if (!priceId) {
-
-              throw new Error(
-                "Bacs Checkout session has no price ID."
-              );
-
-            }
-
-            if (
-              ![1, 15, 26].includes(
-                billingDay
-              )
-            ) {
-
-              throw new Error(
-                "Invalid Bacs billing day."
-              );
-
-            }
-
-            /* =================================================
-               RETRIEVE SETUP INTENT
-               ================================================= */
-
-            const setupIntent =
-              await stripe.setupIntents.retrieve(
-                setupIntentId
-              );
-
             console.log(
-              "Bacs SetupIntent status:",
-              setupIntent.status
+              "Checkout session is not a Bacs donation."
             );
-
-            if (
-              setupIntent.status !==
-              "succeeded"
-            ) {
-
-              throw new Error(
-                `Bacs SetupIntent is not succeeded. Status: ${setupIntent.status}`
-              );
-
-            }
-
-            if (
-              !setupIntent.payment_method
-            ) {
-
-              throw new Error(
-                "Bacs SetupIntent has no payment method."
-              );
-
-            }
-
-            const paymentMethodId =
-              setupIntent.payment_method;
-
-            /*
-             * Retrieve the PaymentMethod so we
-             * can verify it really is Bacs.
-             */
-
-            const paymentMethod =
-              await stripe.paymentMethods.retrieve(
-                paymentMethodId
-              );
-
-            console.log(
-              "Payment method type:",
-              paymentMethod.type
-            );
-
-            if (
-              paymentMethod.type !==
-              "bacs_debit"
-            ) {
-
-              throw new Error(
-                "Payment method is not a Bacs Direct Debit payment method."
-              );
-
-            }
-
-            /* =================================================
-               PREVENT DUPLICATE SUBSCRIPTIONS
-
-               Stripe can retry webhook events.
-               Before creating another subscription,
-               check whether this SetupIntent has already
-               been used.
-               ================================================= */
-
-            const existingSubscriptions =
-              await stripe.subscriptions.list({
-                customer: customerId,
-                status: "all",
-                limit: 100
-              });
-
-            const existingSubscription =
-              existingSubscriptions.data.find(
-                subscription =>
-                  subscription.metadata &&
-                  subscription.metadata
-                    .bacsSetupIntentId ===
-                    setupIntentId
-              );
-
-            if (
-              existingSubscription
-            ) {
-
-              console.log(
-                "Bacs subscription already exists:",
-                existingSubscription.id
-              );
-
-            } else {
-
-              /* ===============================================
-                 CREATE MONTHLY BACS SUBSCRIPTION
-                 =============================================== */
-
-              console.log(
-                "Creating monthly Bacs subscription..."
-              );
-
-              const subscription =
-                await stripe.subscriptions.create({
-
-                  customer:
-                    customerId,
-
-                  items: [
-                    {
-                      price:
-                        priceId
-                    }
-                  ],
-
-                  default_payment_method:
-                    paymentMethodId,
-
-                  billing_cycle_anchor_config: {
-                    day_of_month:
-                      billingDay
-                  },
-
-                  proration_behavior:
-                    "none",
-
-                  payment_settings: {
-
-                    payment_method_types: [
-                      "bacs_debit"
-                    ],
-
-                    save_default_payment_method:
-                      "on_subscription"
-
-                  },
-
-                  metadata: {
-
-                    donationType:
-                      "monthly_bacs",
-
-                    donationCause:
-                      metadata.donationCause ||
-                      "",
-
-                    donationAmount:
-                      metadata.donationAmount ||
-                      "",
-
-                    billingDay:
-                      String(
-                        billingDay
-                      ),
-
-                    giftAid:
-                      metadata.giftAid ||
-                      "no",
-
-                    bacsSetupIntentId:
-                      setupIntentId,
-
-                    checkoutSessionId:
-                      session.id
-
-                  }
-
-                });
-
-              console.log(
-                "================================"
-              );
-
-              console.log(
-                "BACS SUBSCRIPTION CREATED"
-              );
-
-              console.log(
-                "Subscription:",
-                subscription.id
-              );
-
-              console.log(
-                "Status:",
-                subscription.status
-              );
-
-              console.log(
-                "================================"
-              );
-
-            }
 
           }
+
+        } else {
+
+          console.log(
+            "Checkout session is not setup mode."
+          );
 
         }
 
       }
 
+
       /* =====================================================
          NORMAL CARD / SUBSCRIPTION WEBHOOKS
          ===================================================== */
 
-      switch (event.type) {
+      switch (
+        event.type
+      ) {
+
+        /* ===================================================
+           INVOICE PAID
+           =================================================== */
 
         case "invoice.paid":
 
@@ -421,6 +486,11 @@ app.post(
 
           break;
 
+
+        /* ===================================================
+           INVOICE PAYMENT FAILED
+           =================================================== */
+
         case "invoice.payment_failed":
 
           console.log(
@@ -428,6 +498,11 @@ app.post(
           );
 
           break;
+
+
+        /* ===================================================
+           SUBSCRIPTION CREATED
+           =================================================== */
 
         case "customer.subscription.created":
 
@@ -437,6 +512,11 @@ app.post(
 
           break;
 
+
+        /* ===================================================
+           SUBSCRIPTION UPDATED
+           =================================================== */
+
         case "customer.subscription.updated":
 
           console.log(
@@ -444,6 +524,11 @@ app.post(
           );
 
           break;
+
+
+        /* ===================================================
+           SUBSCRIPTION DELETED
+           =================================================== */
 
         case "customer.subscription.deleted":
 
@@ -453,21 +538,74 @@ app.post(
 
           break;
 
-        case "setup_intent.succeeded":
+
+        /* ===================================================
+           SETUP INTENT SUCCEEDED
+
+           THIS IS THE ONLY EVENT THAT CREATES
+           THE BACS SUBSCRIPTION.
+           =================================================== */
+
+        case "setup_intent.succeeded": {
+
+          const setupIntent =
+            event.data.object;
+
+          const metadata =
+            setupIntent.metadata || {};
 
           console.log(
-            "Payment method successfully saved"
+            "SetupIntent succeeded:",
+            setupIntent.id
           );
 
+          /*
+           * Only process Bacs SetupIntents.
+           *
+           * Card monthly SetupIntents continue
+           * through their normal frontend flow.
+           */
+
+          if (
+            metadata.donationType ===
+            "monthly_bacs"
+          ) {
+
+            await createBacsSubscriptionFromSetup(
+              setupIntent.id,
+              metadata
+            );
+
+          } else {
+
+            console.log(
+              "SetupIntent is not a Bacs donation."
+            );
+
+          }
+
           break;
+
+        }
+
+
+        /* ===================================================
+           CHECKOUT SESSION COMPLETED
+
+           Already handled above.
+
+           IMPORTANT:
+           No Bacs subscription is created here.
+           =================================================== */
 
         case "checkout.session.completed":
 
-          /*
-           * Already handled above.
-           */
-
           break;
+
+
+        /* ===================================================
+           OTHER EVENTS
+           =================================================== */
 
         default:
 
@@ -478,36 +616,37 @@ app.post(
 
       }
 
-      /*
-       * Tell Stripe the webhook was successfully processed.
-       */
-
       return res.json({
-        received: true
+
+        received:
+          true
+
       });
 
     } catch (err) {
 
       console.error(
         "WEBHOOK PROCESSING ERROR:",
-        err
+        err.message
       );
-
-      /*
-       * Return 500 so Stripe can retry the webhook.
-       */
 
       return res
         .status(500)
         .json({
-          received: false,
-          error: err.message
+
+          received:
+            false,
+
+          error:
+            err.message
+
         });
 
     }
 
   }
 );
+
 
 /* =========================================================
    NORMAL JSON ROUTES
@@ -521,15 +660,9 @@ app.use(
   express.static("public")
 );
 
-/* =========================================================
-   GET ACTIVE DONATION PRODUCTS + MONTHLY PRICES
 
-   Stripe is the source of truth for:
-   - Product names
-   - Active/inactive products
-   - Donation amounts
-   - Price IDs
-   - Monthly recurring prices
+/* =========================================================
+   GET ACTIVE DONATION PRODUCTS + PRICES
    ========================================================= */
 
 app.get(
@@ -541,13 +674,14 @@ app.get(
       const prices =
         await stripe.prices.list({
 
-          active: true,
+          active:
+            true,
 
-          currency: "gbp",
+          currency:
+            "gbp",
 
-          type: "recurring",
-
-          limit: 100,
+          limit:
+            100,
 
           expand: [
             "data.product"
@@ -557,104 +691,219 @@ app.get(
 
       const products = {};
 
-      prices.data.forEach(price => {
+      prices.data.forEach(
+        price => {
 
-        const product =
-          price.product;
+          const product =
+            price.product;
 
-        if (
-          !product ||
-          typeof product === "string"
-        ) {
+          /* =================================================
+             IGNORE INVALID PRODUCTS
+             ================================================= */
 
-          return;
+          if (
+            !product ||
+            typeof product === "string"
+          ) {
+
+            return;
+
+          }
+
+          if (
+            !product.active
+          ) {
+
+            return;
+
+          }
+
+          /* =================================================
+             CREATE PRODUCT ENTRY
+             ================================================= */
+
+          if (
+            !products[
+              product.id
+            ]
+          ) {
+
+            products[
+              product.id
+            ] = {
+
+              id:
+                product.id,
+
+              name:
+                product.name,
+
+              monthlyPrices:
+                [],
+
+              oneOffPrices:
+                []
+
+            };
+
+          }
+
+          /* =================================================
+             MONTHLY RECURRING PRICE
+             ================================================= */
+
+          if (
+            price.type ===
+              "recurring" &&
+            price.recurring &&
+            price.recurring.interval ===
+              "month" &&
+            price.recurring.interval_count ===
+              1
+          ) {
+
+            products[
+              product.id
+            ].monthlyPrices.push({
+
+              id:
+                price.id,
+
+              amount:
+                price.unit_amount,
+
+              currency:
+                price.currency,
+
+              interval:
+                price.recurring.interval
+
+            });
+
+            return;
+
+          }
+
+          /* =================================================
+             ONE-OFF PRICE
+             ================================================= */
+
+          if (
+            price.type ===
+            "one_time"
+          ) {
+
+            const customUnitAmount =
+              price.custom_unit_amount
+                ? {
+
+                    minimum:
+                      price.custom_unit_amount
+                        .minimum,
+
+                    maximum:
+                      price.custom_unit_amount
+                        .maximum,
+
+                    preset:
+                      price.custom_unit_amount
+                        .preset
+
+                  }
+                : null;
+
+            products[
+              product.id
+            ].oneOffPrices.push({
+
+              id:
+                price.id,
+
+              amount:
+                price.unit_amount,
+
+              currency:
+                price.currency,
+
+              customUnitAmount
+
+            });
+
+          }
 
         }
+      );
 
-        if (
-          !product.active
-        ) {
-
-          return;
-
-        }
-
-        if (
-          !price.recurring ||
-          price.recurring.interval !== "month" ||
-          price.recurring.interval_count !== 1
-        ) {
-
-          return;
-
-        }
-
-        if (
-          !products[product.id]
-        ) {
-
-          products[product.id] = {
-
-            id:
-              product.id,
-
-            name:
-              product.name,
-
-            prices: []
-
-          };
-
-        }
-
-        products[product.id].prices.push({
-
-          id:
-            price.id,
-
-          amount:
-            price.unit_amount,
-
-          currency:
-            price.currency,
-
-          interval:
-            price.recurring.interval
-
-        });
-
-      });
+      /* =====================================================
+         CONVERT OBJECT → ARRAY
+         ===================================================== */
 
       const productList =
         Object.values(
           products
         );
 
-      productList.forEach(product => {
+      /* =====================================================
+         SORT PRICES
+         ===================================================== */
 
-        product.prices.sort(
-          (a, b) =>
-            a.amount - b.amount
-        );
+      productList.forEach(
+        product => {
 
-      });
+          product.monthlyPrices.sort(
+            (a, b) =>
+              Number(
+                a.amount || 0
+              ) -
+              Number(
+                b.amount || 0
+              )
+          );
+
+          product.oneOffPrices.sort(
+            (a, b) => {
+
+              const aAmount =
+                a.amount ??
+                a.customUnitAmount?.preset ??
+                a.customUnitAmount?.minimum ??
+                0;
+
+              const bAmount =
+                b.amount ??
+                b.customUnitAmount?.preset ??
+                b.customUnitAmount?.minimum ??
+                0;
+
+              return (
+                Number(aAmount) -
+                Number(bAmount)
+              );
+
+            }
+          );
+
+        }
+      );
+
+      /* =====================================================
+         ONLY RETURN PRODUCTS THAT HAVE
+         AT LEAST ONE USABLE PRICE
+         ===================================================== */
 
       const filteredProducts =
         productList.filter(
           product =>
-            product.prices.length > 0
+            product.monthlyPrices.length >
+              0 ||
+            product.oneOffPrices.length >
+              0
         );
 
       console.log(
-        "Donation options loaded from Stripe:"
-      );
-
-      console.log(
-        JSON.stringify(
-          filteredProducts,
-          null,
-          2
-        )
+        "Donation options loaded:",
+        filteredProducts.length,
+        "products"
       );
 
       return res.json({
@@ -668,7 +917,7 @@ app.get(
 
       console.error(
         "DONATION OPTIONS ERROR:",
-        err
+        err.message
       );
 
       return res
@@ -684,6 +933,7 @@ app.get(
 
   }
 );
+
 
 /* =========================================================
    CREATE MONTHLY DONATION PAYMENT SETUP
@@ -708,38 +958,6 @@ app.post(
         donationCause
       } = req.body;
 
-      console.log(
-        "================================"
-      );
-
-      console.log(
-        "NEW MONTHLY DONATION"
-      );
-
-      console.log(
-        "Email:",
-        email
-      );
-
-      console.log(
-        "Amount:",
-        donationAmount
-      );
-
-      console.log(
-        "Start date:",
-        startDate
-      );
-
-      console.log(
-        "Cause:",
-        donationCause
-      );
-
-      console.log(
-        "================================"
-      );
-
       /* =====================================================
          CREATE CUSTOMER
          ===================================================== */
@@ -755,7 +973,9 @@ app.post(
           phone,
 
           address: {
+
             country
+
           },
 
           metadata: {
@@ -773,7 +993,7 @@ app.post(
         });
 
       console.log(
-        "Customer created:",
+        "Monthly Card customer created:",
         customer.id
       );
 
@@ -782,7 +1002,9 @@ app.post(
          ===================================================== */
 
       const billingDay =
-        Number(startDate);
+        Number(
+          startDate
+        );
 
       if (
         ![1, 15, 26].includes(
@@ -793,8 +1015,10 @@ app.post(
         return res
           .status(400)
           .json({
+
             error:
               "Invalid start date"
+
           });
 
       }
@@ -803,13 +1027,17 @@ app.post(
          VALIDATE PRICE
          ===================================================== */
 
-      if (!priceId) {
+      if (
+        !priceId
+      ) {
 
         return res
           .status(400)
           .json({
+
             error:
               "Missing monthly price ID"
+
           });
 
       }
@@ -825,7 +1053,10 @@ app.post(
             customer.id,
 
           automatic_payment_methods: {
-            enabled: true
+
+            enabled:
+              true
+
           },
 
           metadata: {
@@ -855,7 +1086,7 @@ app.post(
         });
 
       console.log(
-        "SetupIntent created:",
+        "Monthly Card SetupIntent created:",
         setupIntent.id
       );
 
@@ -883,20 +1114,540 @@ app.post(
 
       console.error(
         "PAYMENT ERROR:",
-        err
+        err.message
       );
 
       return res
         .status(500)
         .json({
+
           error:
             err.message
+
         });
 
     }
 
   }
 );
+
+
+/* =========================================================
+   CREATE ONE-OFF CARD PAYMENT
+   ========================================================= */
+
+app.post(
+  "/create-one-off-payment",
+  async (req, res) => {
+
+    try {
+
+      const {
+        email,
+        fullName,
+        phone,
+        address,
+        postcode,
+        country,
+        giftAid,
+        donationCause,
+        priceId,
+        donationAmount
+      } = req.body;
+
+      /* =====================================================
+         VALIDATE PRICE ID
+         ===================================================== */
+
+      if (
+        !priceId
+      ) {
+
+        return res
+          .status(400)
+          .json({
+
+            error:
+              "Missing one-off price ID."
+
+          });
+
+      }
+
+      /* =====================================================
+         RETRIEVE PRICE FROM STRIPE
+         ===================================================== */
+
+      const price =
+        await stripe.prices.retrieve(
+          priceId
+        );
+
+      /* =====================================================
+         MAKE SURE THIS IS A ONE-OFF PRICE
+         ===================================================== */
+
+      if (
+        price.type !==
+        "one_time"
+      ) {
+
+        return res
+          .status(400)
+          .json({
+
+            error:
+              "The selected price is not a one-off donation price."
+
+          });
+
+      }
+
+      /* =====================================================
+         MAKE SURE PRICE IS ACTIVE
+         ===================================================== */
+
+      if (
+        !price.active
+      ) {
+
+        return res
+          .status(400)
+          .json({
+
+            error:
+              "The selected donation price is no longer available."
+
+          });
+
+      }
+
+      /* =====================================================
+         MAKE SURE PRICE IS GBP
+         ===================================================== */
+
+      if (
+        price.currency !==
+        "gbp"
+      ) {
+
+        return res
+          .status(400)
+          .json({
+
+            error:
+              "The selected donation price is not in GBP."
+
+          });
+
+      }
+
+      /* =====================================================
+         VALIDATE ENTERED DONATION AMOUNT
+         ===================================================== */
+
+      const amountString =
+        String(
+          donationAmount ??
+          ""
+        ).trim();
+
+      if (
+        !/^\d+(?:\.\d{1,2})?$/.test(
+          amountString
+        )
+      ) {
+
+        return res
+          .status(400)
+          .json({
+
+            error:
+              "Please enter a valid donation amount using pounds and pence."
+
+          });
+
+      }
+
+      const enteredAmount =
+        Number(
+          amountString
+        );
+
+      if (
+        !Number.isFinite(
+          enteredAmount
+        ) ||
+        enteredAmount <= 0
+      ) {
+
+        return res
+          .status(400)
+          .json({
+
+            error:
+              "The donation amount must be greater than £0."
+
+          });
+
+      }
+
+      /* =====================================================
+         CONVERT TO PENCE
+         ===================================================== */
+
+      const amountInPence =
+        Math.round(
+          enteredAmount *
+          100
+        );
+
+      if (
+        amountInPence <= 0
+      ) {
+
+        return res
+          .status(400)
+          .json({
+
+            error:
+              "The donation amount is invalid."
+
+          });
+
+      }
+
+      /* =====================================================
+         CUSTOM AMOUNT PRICE
+         ===================================================== */
+
+      if (
+        price.custom_unit_amount
+      ) {
+
+        const minimum =
+          Number(
+            price.custom_unit_amount
+              .minimum
+          );
+
+        const maximum =
+          Number(
+            price.custom_unit_amount
+              .maximum
+          );
+
+        if (
+          !Number.isInteger(
+            minimum
+          ) ||
+          !Number.isInteger(
+            maximum
+          )
+        ) {
+
+          return res
+            .status(400)
+            .json({
+
+              error:
+                "The Stripe custom donation limits are invalid."
+
+            });
+
+        }
+
+        if (
+          amountInPence <
+          minimum
+        ) {
+
+          return res
+            .status(400)
+            .json({
+
+              error:
+                `The minimum donation is £${(
+                  minimum / 100
+                ).toFixed(2)}.`
+
+            });
+
+        }
+
+        if (
+          amountInPence >
+          maximum
+        ) {
+
+          return res
+            .status(400)
+            .json({
+
+              error:
+                `The maximum donation is £${(
+                  maximum / 100
+                ).toFixed(2)}.`
+
+            });
+
+        }
+
+      }
+
+      /* =====================================================
+         FIXED ONE-OFF PRICE
+         ===================================================== */
+
+      else {
+
+        if (
+          price.unit_amount ===
+            null ||
+          price.unit_amount ===
+            undefined
+        ) {
+
+          return res
+            .status(400)
+            .json({
+
+              error:
+                "The selected Stripe Price does not have a valid amount configuration."
+
+            });
+
+        }
+
+        if (
+          amountInPence !==
+          Number(
+            price.unit_amount
+          )
+        ) {
+
+          return res
+            .status(400)
+            .json({
+
+              error:
+                `The selected donation amount must be £${(
+                  Number(
+                    price.unit_amount
+                  ) / 100
+                ).toFixed(2)}.`
+
+            });
+
+        }
+
+      }
+
+      console.log(
+        "One-off donation amount validated."
+      );
+
+      /* =====================================================
+         NORMALISE COUNTRY
+         ===================================================== */
+
+      let stripeCountry =
+        String(
+          country || ""
+        )
+          .trim()
+          .toUpperCase();
+
+      if (
+        stripeCountry ===
+        "UNITED KINGDOM"
+      ) {
+
+        stripeCountry =
+          "GB";
+
+      }
+
+      if (
+        stripeCountry ===
+        "UK"
+      ) {
+
+        stripeCountry =
+          "GB";
+
+      }
+
+      const customerAddress =
+        address ||
+        postcode
+          ? {
+
+              line1:
+                address ||
+                undefined,
+
+              postal_code:
+                postcode ||
+                undefined,
+
+              country:
+                stripeCountry ||
+                undefined
+
+            }
+          : undefined;
+
+      /* =====================================================
+         CREATE CUSTOMER
+         ===================================================== */
+
+      const customer =
+        await stripe.customers.create({
+
+          email,
+
+          name:
+            fullName,
+
+          phone,
+
+          address:
+            customerAddress,
+
+          metadata: {
+
+            donationType:
+              "one_off",
+
+            donationCause:
+              donationCause ||
+              "",
+
+            giftAid:
+              giftAid
+                ? "yes"
+                : "no",
+
+            priceId,
+
+            donationAmount:
+              enteredAmount.toFixed(
+                2
+              )
+
+          }
+
+        });
+
+      console.log(
+        "One-off customer created:",
+        customer.id
+      );
+
+      /* =====================================================
+         CREATE PAYMENT INTENT
+         ===================================================== */
+
+      const paymentIntent =
+        await stripe.paymentIntents.create({
+
+          amount:
+            amountInPence,
+
+          currency:
+            price.currency,
+
+          customer:
+            customer.id,
+
+          payment_method_types: [
+            "card"
+          ],
+
+          metadata: {
+
+            donationType:
+              "one_off",
+
+            donationCause:
+              donationCause ||
+              "",
+
+            donationAmount:
+              enteredAmount.toFixed(
+                2
+              ),
+
+            giftAid:
+              giftAid
+                ? "yes"
+                : "no",
+
+            priceId,
+
+            customerId:
+              customer.id
+
+          }
+
+        });
+
+      console.log(
+        "One-off PaymentIntent created:",
+        paymentIntent.id
+      );
+
+      console.log(
+        "PaymentIntent status:",
+        paymentIntent.status
+      );
+
+      return res.json({
+
+        success:
+          true,
+
+        mode:
+          "payment",
+
+        clientSecret:
+          paymentIntent.client_secret,
+
+        paymentIntentId:
+          paymentIntent.id,
+
+        customerId:
+          customer.id,
+
+        priceId,
+
+        amount:
+          amountInPence
+
+      });
+
+    } catch (err) {
+
+      console.error(
+        "ONE-OFF PAYMENT ERROR:",
+        err.message
+      );
+
+      return res
+        .status(500)
+        .json({
+
+          error:
+            err.message
+
+        });
+
+    }
+
+  }
+);
+
 
 /* =========================================================
    CREATE MONTHLY CARD SUBSCRIPTION
@@ -916,35 +1667,8 @@ app.post(
       } = req.body;
 
       console.log(
-        "================================"
-      );
-
-      console.log(
-        "CREATING MONTHLY SUBSCRIPTION"
-      );
-
-      console.log(
-        "Customer:",
-        customerId
-      );
-
-      console.log(
-        "SetupIntent:",
+        "Creating monthly Card subscription:",
         setupIntentId
-      );
-
-      console.log(
-        "Price:",
-        priceId
-      );
-
-      console.log(
-        "Billing day:",
-        billingDay
-      );
-
-      console.log(
-        "================================"
       );
 
       /* =====================================================
@@ -956,15 +1680,19 @@ app.post(
 
       if (
         !validBillingDays.includes(
-          Number(billingDay)
+          Number(
+            billingDay
+          )
         )
       ) {
 
         return res
           .status(400)
           .json({
+
             error:
               "Invalid billing day"
+
           });
 
       }
@@ -986,8 +1714,10 @@ app.post(
         return res
           .status(400)
           .json({
+
             error:
               "Payment method has not been successfully saved."
+
           });
 
       }
@@ -999,28 +1729,41 @@ app.post(
         return res
           .status(400)
           .json({
+
             error:
               "No payment method was found on the SetupIntent."
+
           });
 
       }
 
+      const setupIntentCustomerId =
+        typeof setupIntent.customer ===
+          "string"
+          ? setupIntent.customer
+          : setupIntent.customer?.id;
+
       if (
-        setupIntent.customer !==
+        setupIntentCustomerId !==
         customerId
       ) {
 
         return res
           .status(400)
           .json({
+
             error:
               "SetupIntent does not belong to this customer."
+
           });
 
       }
 
       const paymentMethodId =
-        setupIntent.payment_method;
+        typeof setupIntent.payment_method ===
+          "string"
+          ? setupIntent.payment_method
+          : setupIntent.payment_method.id;
 
       console.log(
         "Saved payment method:",
@@ -1085,7 +1828,7 @@ app.post(
         });
 
       console.log(
-        "Monthly subscription created:",
+        "Monthly Card subscription created:",
         subscription.id
       );
 
@@ -1111,20 +1854,23 @@ app.post(
 
       console.error(
         "MONTHLY SUBSCRIPTION ERROR:",
-        err
+        err.message
       );
 
       return res
         .status(500)
         .json({
+
           error:
             err.message
+
         });
 
     }
 
   }
 );
+
 
 /* =========================================================
    CREATE BACS CHECKOUT SESSION
@@ -1150,49 +1896,14 @@ app.post(
         priceId
       } = req.body;
 
-      console.log(
-        "================================"
-      );
-
-      console.log(
-        "NEW BACS DONATION"
-      );
-
-      console.log(
-        "Email:",
-        email
-      );
-
-      console.log(
-        "Name:",
-        fullName
-      );
-
-      console.log(
-        "Amount:",
-        donationAmount
-      );
-
-      console.log(
-        "Start date:",
-        startDate
-      );
-
-      console.log(
-        "Cause:",
-        donationCause
-      );
-
-      console.log(
-        "================================"
-      );
-
       /* =====================================================
          VALIDATE BILLING DAY
          ===================================================== */
 
       const billingDay =
-        Number(startDate);
+        Number(
+          startDate
+        );
 
       if (
         ![1, 15, 26].includes(
@@ -1203,8 +1914,10 @@ app.post(
         return res
           .status(400)
           .json({
+
             error:
               "Invalid start date"
+
           });
 
       }
@@ -1213,13 +1926,17 @@ app.post(
          VALIDATE PRICE
          ===================================================== */
 
-      if (!priceId) {
+      if (
+        !priceId
+      ) {
 
         return res
           .status(400)
           .json({
+
             error:
               "Missing monthly price ID"
+
           });
 
       }
@@ -1263,8 +1980,10 @@ app.post(
         return res
           .status(400)
           .json({
+
             error:
               "Bacs Direct Debit is currently available only for customers in the United Kingdom."
+
           });
 
       }
@@ -1302,11 +2021,13 @@ app.post(
               "monthly_bacs",
 
             donationCause:
-              donationCause || "",
+              donationCause ||
+              "",
 
             donationAmount:
               String(
-                donationAmount || ""
+                donationAmount ||
+                ""
               ),
 
             billingDay:
@@ -1344,7 +2065,14 @@ app.post(
           currency:
             "gbp",
 
-          allowed_payment_method_types: [
+          /*
+           * IMPORTANT:
+           *
+           * This is payment_method_types,
+           * NOT allowed_payment_method_types.
+           */
+
+          payment_method_types: [
             "bacs_debit"
           ],
 
@@ -1370,11 +2098,13 @@ app.post(
 
               donationAmount:
                 String(
-                  donationAmount || ""
+                  donationAmount ||
+                  ""
                 ),
 
               donationCause:
-                donationCause || "",
+                donationCause ||
+                "",
 
               billingDay:
                 String(
@@ -1402,11 +2132,13 @@ app.post(
 
             donationAmount:
               String(
-                donationAmount || ""
+                donationAmount ||
+                ""
               ),
 
             donationCause:
-              donationCause || "",
+              donationCause ||
+              "",
 
             billingDay:
               String(
@@ -1425,17 +2157,10 @@ app.post(
 
           },
 
-          /* =================================================
-             BACS SUCCESS REDIRECT
-
-             Stripe sends the staff member back to the
-             donation form after successful Bacs setup.
-             ================================================= */
-
           success_url:
             `${req.protocol}://${req.get(
               "host"
-            )}/`,
+            )}/bacs-success`,
 
           cancel_url:
             `${req.protocol}://${req.get(
@@ -1470,14 +2195,16 @@ app.post(
 
       console.error(
         "BACS CHECKOUT ERROR:",
-        err
+        err.message
       );
 
       return res
         .status(500)
         .json({
+
           error:
             err.message
+
         });
 
     }
@@ -1485,22 +2212,22 @@ app.post(
   }
 );
 
+
 /* =========================================================
    BACS SUCCESS PAGE
-
-   Kept as a fallback route.
-   The normal successful Bacs flow now redirects
-   directly to "/".
    ========================================================= */
 
 app.get(
   "/bacs-success",
   (req, res) => {
 
-    res.redirect("/");
+    res.redirect(
+      "/"
+    );
 
   }
 );
+
 
 /* =========================================================
    BACS CANCELLED PAGE
@@ -1617,6 +2344,7 @@ app.get(
 
   }
 );
+
 
 /* =========================================================
    START SERVER

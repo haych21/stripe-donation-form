@@ -2,8 +2,19 @@
 // STRIPE INIT
 // =============================
 
+const isLocal =
+  window.location.hostname === "localhost" ||
+  window.location.hostname === "127.0.0.1";
+
 const stripe = Stripe(
-  "pk_live_51SiKvVCAoHPyyMUZQyt8UANqZEEpXnn5fFehtcCzeVeu58ISRfRncPZNRpseByTp7NS5AHzyAnSW7YptWGM5MwBd00AK3pD3vB"
+  isLocal
+    ? "pk_test_51TYkg6EPmNke8msB4Yvsmr1Wg12tWt8DDu23mv12X1WuV2T0WvoZwUDLzuldsSa73v1jVMwwrNx1TkXGq3fSmKdb00YBQ7YEJC"
+    : "pk_live_51SiKvVCAoHPyyMUZQyt8UANqZEEpXnn5fFehtcCzeVeu58ISRfRncPZNRpseByTp7NS5AHzyAnSW7YptWGM5MwBd00AK3pD3vB"
+);
+
+console.log(
+  "Stripe mode:",
+  isLocal ? "TEST" : "LIVE"
 );
 
 console.log("JS is connected and running");
@@ -11,19 +22,9 @@ console.log("JS is connected and running");
 // =============================
 // API URL
 // =============================
-// Automatically switches between
-// local development and production.
-//
-// LOCAL:
-// Live Server → localhost:3000
-//
-// LIVE:
-// Website → Render backend
-// =============================
 
 const API_URL =
-  window.location.hostname === "localhost" ||
-  window.location.hostname === "127.0.0.1"
+  isLocal
     ? "http://localhost:3000"
     : "https://stripedonationform.onrender.com";
 
@@ -40,21 +41,16 @@ let elements = null;
 let paymentElement = null;
 
 let monthlySetupData = null;
+let oneOffPaymentData = null;
 
 let paymentReady = false;
 
 // =============================
 // STRIPE DONATION OPTIONS
 // =============================
-// Stripe is now the source of truth.
-//
-// Products and Prices are loaded from:
-// /donation-options
-//
-// Nothing is hard-coded here anymore.
-// =============================
 
-let priceMap = {};
+let monthlyPriceMap = {};
+let oneOffPriceMap = {};
 
 let donationOptionsReady = false;
 
@@ -71,6 +67,16 @@ const amountSelect =
 const startDateSelect =
   document.getElementById("start-date");
 
+const startDateContainer =
+  document.getElementById(
+    "start-date-container"
+  );
+
+const donationFrequencyInputs =
+  document.querySelectorAll(
+    'input[name="donation-frequency"]'
+  );
+
 const form =
   document.querySelector("form");
 
@@ -83,13 +89,244 @@ const inputs =
   document.querySelectorAll("input");
 
 // =============================
-// PAYMENT ELEMENT CONTAINER
+// SUCCESS MODAL
+// =============================
+
+const successModal =
+  document.getElementById(
+    "success-modal"
+  );
+
+const successModalTitle =
+  document.getElementById(
+    "success-modal-title"
+  );
+
+const successModalMessage =
+  document.getElementById(
+    "success-modal-message"
+  );
+
+const successModalClose =
+  document.getElementById(
+    "success-modal-close"
+  );
+
+const successModalDone =
+  document.getElementById(
+    "success-modal-done"
+  );
+
+const successModalOverlay =
+  document.querySelector(
+    ".success-modal-overlay"
+  );
+
+function showSuccessModal(
+  title,
+  message
+) {
+
+  if (
+    !successModal ||
+    !successModalTitle ||
+    !successModalMessage
+  ) {
+
+    return;
+
+  }
+
+  successModalTitle.textContent =
+    title;
+
+  successModalMessage.textContent =
+    message;
+
+  successModal.hidden =
+    false;
+
+  document.body.style.overflow =
+    "hidden";
+
+  if (successModalDone) {
+
+    setTimeout(
+      () => {
+
+        successModalDone.focus();
+
+      },
+      0
+    );
+
+  }
+
+}
+
+function hideSuccessModal() {
+
+  if (!successModal) {
+
+    return;
+
+  }
+
+  successModal.hidden =
+    true;
+
+  document.body.style.overflow =
+    "";
+
+}
+
+if (successModalClose) {
+
+  successModalClose.addEventListener(
+    "click",
+    hideSuccessModal
+  );
+
+}
+
+if (successModalDone) {
+
+  successModalDone.addEventListener(
+    "click",
+    hideSuccessModal
+  );
+
+}
+
+if (successModalOverlay) {
+
+  successModalOverlay.addEventListener(
+    "click",
+    hideSuccessModal
+  );
+
+}
+
+document.addEventListener(
+  "keydown",
+  event => {
+
+    if (
+      event.key === "Escape" &&
+      successModal &&
+      !successModal.hidden
+    ) {
+
+      hideSuccessModal();
+
+    }
+
+  }
+);
+
+// =============================
+// ONE-OFF AMOUNT INPUT
+// =============================
+
+let oneOffAmountInput = null;
+
+// =============================
+// PAYMENT METHOD ELEMENTS
 // =============================
 
 const paymentPlaceholder =
   document.querySelector(
     ".payment-placeholder"
   );
+
+const paymentMethodInputs =
+  document.querySelectorAll(
+    'input[name="payment-method"]'
+  );
+
+const bacsPaymentInput =
+  document.querySelector(
+    'input[name="payment-method"][value="bacs_debit"]'
+  );
+
+// =============================
+// CREATE ONE-OFF AMOUNT INPUT
+// =============================
+
+function createOneOffAmountInput() {
+
+  if (
+    oneOffAmountInput ||
+    !amountSelect
+  ) {
+
+    return;
+
+  }
+
+  oneOffAmountInput =
+    document.createElement(
+      "input"
+    );
+
+  oneOffAmountInput.type =
+    "number";
+
+  oneOffAmountInput.id =
+    "one-off-amount";
+
+  oneOffAmountInput.name =
+    "one-off-amount";
+
+  oneOffAmountInput.inputMode =
+    "decimal";
+
+  oneOffAmountInput.step =
+    "0.01";
+
+  oneOffAmountInput.placeholder =
+    "Enter amount";
+
+  oneOffAmountInput.className =
+    amountSelect.className;
+
+  oneOffAmountInput.style.display =
+    "none";
+
+  oneOffAmountInput.disabled =
+    true;
+
+  amountSelect.insertAdjacentElement(
+    "afterend",
+    oneOffAmountInput
+  );
+
+  oneOffAmountInput.addEventListener(
+    "input",
+    () => {
+
+      oneOffAmountInput.classList.remove(
+        "input-error"
+      );
+
+      if (
+        getDonationFrequency() ===
+          "one_off" &&
+        paymentReady
+      ) {
+
+        resetStripe(false);
+
+        updatePaymentMethodUI();
+
+      }
+
+    }
+  );
+
+}
+
+createOneOffAmountInput();
 
 // =============================
 // GET PAYMENT METHOD
@@ -109,7 +346,189 @@ function getPaymentMethod() {
 }
 
 // =============================
-// SHOW / HIDE PAYMENT ELEMENT
+// GET DONATION FREQUENCY
+// =============================
+
+function getDonationFrequency() {
+
+  const selected =
+    document.querySelector(
+      'input[name="donation-frequency"]:checked'
+    );
+
+  return selected
+    ? selected.value
+    : "monthly";
+
+}
+
+// =============================
+// GET CURRENT PRICE MAP
+// =============================
+
+function getCurrentPriceMap() {
+
+  const frequency =
+    getDonationFrequency();
+
+  if (
+    frequency === "one_off"
+  ) {
+
+    return oneOffPriceMap;
+
+  }
+
+  return monthlyPriceMap;
+
+}
+
+// =============================
+// GET CURRENT PAYMENT BUTTON TEXT
+// =============================
+
+function getReadyButtonText() {
+
+  const frequency =
+    getDonationFrequency();
+
+  if (
+    frequency === "one_off"
+  ) {
+
+    return "Make One-off Donation";
+
+  }
+
+  return "Start Monthly Donation";
+
+}
+
+// =============================
+// GET ONE-OFF PRICE CONFIG
+// =============================
+
+function getOneOffPriceConfig(
+  selectedCause
+) {
+
+  const prices =
+    oneOffPriceMap[
+      selectedCause
+    ];
+
+  if (
+    !Array.isArray(prices) ||
+    prices.length === 0
+  ) {
+
+    return null;
+
+  }
+
+  const customPrice =
+    prices.find(
+      price =>
+        price.customUnitAmount
+    );
+
+  if (
+    customPrice
+  ) {
+
+    return customPrice;
+
+  }
+
+  return prices[0];
+
+}
+
+// =============================
+// UPDATE DONATION FREQUENCY UI
+// =============================
+
+function updateDonationFrequencyUI() {
+
+  const frequency =
+    getDonationFrequency();
+
+  // =============================
+  // ONE-OFF
+  // =============================
+
+  if (
+    frequency === "one_off"
+  ) {
+
+    if (startDateContainer) {
+
+      startDateContainer.style.display =
+        "none";
+
+    }
+
+    if (startDateSelect) {
+
+      startDateSelect.value = "";
+
+      startDateSelect.classList.remove(
+        "input-error"
+      );
+
+    }
+
+    if (bacsPaymentInput) {
+
+      bacsPaymentInput.disabled =
+        true;
+
+      if (
+        bacsPaymentInput.checked
+      ) {
+
+        const cardInput =
+          document.querySelector(
+            'input[name="payment-method"][value="card"]'
+          );
+
+        if (cardInput) {
+
+          cardInput.checked =
+            true;
+
+        }
+
+      }
+
+    }
+
+    return;
+
+  }
+
+  // =============================
+  // MONTHLY
+  // =============================
+
+  if (startDateContainer) {
+
+    startDateContainer.style.display =
+      "";
+
+  }
+
+  if (bacsPaymentInput) {
+
+    bacsPaymentInput.disabled =
+      false;
+
+  }
+
+}
+
+// =============================
+// UPDATE PAYMENT METHOD UI
 // =============================
 
 function updatePaymentMethodUI() {
@@ -150,21 +569,25 @@ function updatePaymentMethodUI() {
   paymentPlaceholder.style.display =
     "";
 
-  submitButton.textContent =
+  if (
     paymentReady
-      ? "Start Monthly Donation"
-      : "Continue To Payment";
+  ) {
+
+    submitButton.textContent =
+      getReadyButtonText();
+
+  } else {
+
+    submitButton.textContent =
+      "Continue To Payment";
+
+  }
 
 }
 
 // =============================
 // PAYMENT METHOD CHANGE
 // =============================
-
-const paymentMethodInputs =
-  document.querySelectorAll(
-    'input[name="payment-method"]'
-  );
 
 paymentMethodInputs.forEach(
   input => {
@@ -179,6 +602,70 @@ paymentMethodInputs.forEach(
         );
 
         resetStripe(false);
+
+        updatePaymentMethodUI();
+
+      }
+    );
+
+  }
+);
+
+// =============================
+// DONATION FREQUENCY CHANGE
+// =============================
+
+donationFrequencyInputs.forEach(
+  input => {
+
+    input.addEventListener(
+      "change",
+      () => {
+
+        console.log(
+          "Donation frequency changed:",
+          input.value
+        );
+
+        resetStripe(false);
+
+        updateDonationFrequencyUI();
+
+        if (
+          causeSelect.value
+        ) {
+
+          populateAmountControl(
+            causeSelect.value
+          );
+
+        } else {
+
+          amountSelect.innerHTML = `
+            <option value="" disabled selected>
+              Select an amount
+            </option>
+          `;
+
+          amountSelect.disabled =
+            true;
+
+          if (
+            oneOffAmountInput
+          ) {
+
+            oneOffAmountInput.value =
+              "";
+
+            oneOffAmountInput.disabled =
+              true;
+
+            oneOffAmountInput.style.display =
+              "none";
+
+          }
+
+        }
 
         updatePaymentMethodUI();
 
@@ -232,7 +719,18 @@ function resetStripe(
 
   if (paymentElement) {
 
-    paymentElement.destroy();
+    try {
+
+      paymentElement.destroy();
+
+    } catch (err) {
+
+      console.warn(
+        "Stripe Payment Element was already destroyed.",
+        err
+      );
+
+    }
 
     paymentElement = null;
 
@@ -241,6 +739,8 @@ function resetStripe(
   elements = null;
 
   monthlySetupData = null;
+
+  oneOffPaymentData = null;
 
   paymentReady = false;
 
@@ -268,12 +768,204 @@ function resetStripe(
 }
 
 // =============================
-// LOAD DONATION OPTIONS
+// RESET FORM AFTER SUCCESS
 // =============================
-// Gets Products + Prices from Stripe
-// through your backend.
-//
-// Stripe is now the source of truth.
+
+function resetDonationForm() {
+
+  resetStripe(false);
+
+  form.reset();
+
+  causeSelect.value = "";
+  causeSelect.selectedIndex = 0;
+
+  amountSelect.innerHTML = `
+    <option value="" disabled selected>
+      Select an amount
+    </option>
+  `;
+
+  amountSelect.disabled =
+    true;
+
+  amountSelect.style.display =
+    "";
+
+  if (oneOffAmountInput) {
+
+    oneOffAmountInput.value =
+      "";
+
+    oneOffAmountInput.disabled =
+      true;
+
+    oneOffAmountInput.style.display =
+      "none";
+
+    oneOffAmountInput.classList.remove(
+      "input-error"
+    );
+
+    oneOffAmountInput.dataset.priceId =
+      "";
+
+  }
+
+  const monthlyInput =
+    document.querySelector(
+      'input[name="donation-frequency"][value="monthly"]'
+    );
+
+  if (monthlyInput) {
+
+    monthlyInput.checked =
+      true;
+
+  }
+
+  const cardInput =
+    document.querySelector(
+      'input[name="payment-method"][value="card"]'
+    );
+
+  if (cardInput) {
+
+    cardInput.checked =
+      true;
+
+  }
+
+  if (startDateSelect) {
+
+    startDateSelect.value =
+      "";
+
+    startDateSelect.classList.remove(
+      "input-error"
+    );
+
+  }
+
+  updateDonationFrequencyUI();
+
+  updatePaymentMethodUI();
+
+  submitButton.disabled =
+    false;
+
+  submitButton.textContent =
+    "Continue To Payment";
+
+}
+
+// =============================
+// MOUNT STRIPE PAYMENT ELEMENT
+// =============================
+
+async function mountPaymentElement(
+  clientSecret
+) {
+
+  if (!clientSecret) {
+
+    throw new Error(
+      "Missing Stripe client secret."
+    );
+
+  }
+
+  if (paymentElement) {
+
+    try {
+
+      paymentElement.destroy();
+
+    } catch (err) {
+
+      console.warn(
+        "Existing Stripe Payment Element was already destroyed.",
+        err
+      );
+
+    }
+
+    paymentElement = null;
+
+  }
+
+  elements =
+    stripe.elements({
+      clientSecret
+    });
+
+  paymentElement =
+    elements.create(
+      "payment"
+    );
+
+  await new Promise(
+    (resolve, reject) => {
+
+      let settled = false;
+
+      paymentElement.on(
+        "ready",
+        () => {
+
+          if (settled) {
+            return;
+          }
+
+          settled = true;
+
+          console.log(
+            "Stripe Payment Element is ready."
+          );
+
+          resolve();
+
+        }
+      );
+
+      paymentElement.on(
+        "loaderror",
+        event => {
+
+          if (settled) {
+            return;
+          }
+
+          settled = true;
+
+          console.error(
+            "Stripe Payment Element load error:",
+            event
+          );
+
+          reject(
+            new Error(
+              "The Stripe Payment Element could not be loaded."
+            )
+          );
+
+        }
+      );
+
+      paymentElement.mount(
+        "#payment-element"
+      );
+
+    }
+  );
+
+  paymentReady =
+    true;
+
+}
+
+// =============================
+// LOAD DONATION OPTIONS
 // =============================
 
 async function loadDonationOptions() {
@@ -284,19 +976,20 @@ async function loadDonationOptions() {
       "Loading donation options from Stripe..."
     );
 
-    // =============================
-    // DISABLE DROPDOWNS WHILE LOADING
-    // =============================
-
     causeSelect.disabled =
       true;
 
     amountSelect.disabled =
       true;
 
-    // =============================
-    // GET DATA FROM BACKEND
-    // =============================
+    if (
+      oneOffAmountInput
+    ) {
+
+      oneOffAmountInput.disabled =
+        true;
+
+    }
 
     const response =
       await fetch(
@@ -320,15 +1013,9 @@ async function loadDonationOptions() {
 
     }
 
-    // =============================
-    // RESET LOCAL PRICE MAP
-    // =============================
+    monthlyPriceMap = {};
 
-    priceMap = {};
-
-    // =============================
-    // RESET CAUSE DROPDOWN
-    // =============================
+    oneOffPriceMap = {};
 
     causeSelect.innerHTML = `
       <option value="" disabled>
@@ -336,15 +1023,29 @@ async function loadDonationOptions() {
       </option>
     `;
 
-    // =============================
-    // RESET AMOUNT DROPDOWN
-    // =============================
-
     amountSelect.innerHTML = `
-      <option value="" disabled>
+      <option value="" disabled selected>
         Select an amount
       </option>
     `;
+
+    amountSelect.style.display =
+      "";
+
+    if (
+      oneOffAmountInput
+    ) {
+
+      oneOffAmountInput.value =
+        "";
+
+      oneOffAmountInput.style.display =
+        "none";
+
+      oneOffAmountInput.disabled =
+        true;
+
+    }
 
     // =============================
     // ADD PRODUCTS
@@ -369,24 +1070,20 @@ async function loadDonationOptions() {
         );
 
         // =============================
-        // CREATE PRODUCT PRICE MAP
+        // MONTHLY PRICE MAP
         // =============================
 
-        priceMap[
+        monthlyPriceMap[
           product.name
         ] = {};
 
-        // =============================
-        // ADD PRICES
-        // =============================
-
-        product.prices.forEach(
+        product.monthlyPrices.forEach(
           price => {
 
             const amount =
               price.amount / 100;
 
-            priceMap[
+            monthlyPriceMap[
               product.name
             ][amount] =
               price.id;
@@ -394,18 +1091,17 @@ async function loadDonationOptions() {
           }
         );
 
+        // =============================
+        // ONE-OFF PRICE MAP
+        // =============================
+
+        oneOffPriceMap[
+          product.name
+        ] =
+          product.oneOffPrices || [];
+
       }
     );
-
-    // =============================
-    // IMPORTANT:
-    // FORCE BOTH DROPDOWNS BACK
-    // TO THEIR PLACEHOLDER OPTIONS
-    // =============================
-    // This is done AFTER Stripe products
-    // have been added so the browser
-    // cannot restore the previous
-    // selected values on refresh.
 
     causeSelect.selectedIndex =
       0;
@@ -413,22 +1109,11 @@ async function loadDonationOptions() {
     amountSelect.selectedIndex =
       0;
 
-    // =============================
-    // ENABLE CAUSE DROPDOWN
-    // =============================
-
     causeSelect.disabled =
       false;
 
-    // Amount stays disabled until
-    // a cause is selected.
-
     amountSelect.disabled =
       true;
-
-    // =============================
-    // READY
-    // =============================
 
     donationOptionsReady =
       true;
@@ -438,8 +1123,13 @@ async function loadDonationOptions() {
     );
 
     console.log(
-      "Dynamic price map:",
-      priceMap
+      "Monthly price map:",
+      monthlyPriceMap
+    );
+
+    console.log(
+      "One-off price map:",
+      oneOffPriceMap
     );
 
   } catch (err) {
@@ -451,10 +1141,6 @@ async function loadDonationOptions() {
 
     donationOptionsReady =
       false;
-
-    // =============================
-    // SHOW ERROR IN DROPDOWNS
-    // =============================
 
     causeSelect.innerHTML = `
       <option value="">
@@ -474,6 +1160,18 @@ async function loadDonationOptions() {
     amountSelect.disabled =
       true;
 
+    if (
+      oneOffAmountInput
+    ) {
+
+      oneOffAmountInput.disabled =
+        true;
+
+      oneOffAmountInput.style.display =
+        "none";
+
+    }
+
     alert(
       "We could not load the available donation options. Please refresh the page and try again."
     );
@@ -483,22 +1181,26 @@ async function loadDonationOptions() {
 }
 
 // =============================
-// CAUSE CHANGE
-// =============================
-// When a Product is selected,
-// load its active monthly Prices.
+// POPULATE AMOUNT CONTROL
 // =============================
 
-causeSelect.addEventListener(
-  "change",
-  () => {
+function populateAmountControl(
+  selectedCause
+) {
 
-    const selectedCause =
-      causeSelect.value;
+  const frequency =
+    getDonationFrequency();
 
-    // =============================
-    // RESET AMOUNT DROPDOWN
-    // =============================
+  // =============================
+  // MONTHLY
+  // =============================
+
+  if (
+    frequency === "monthly"
+  ) {
+
+    amountSelect.style.display =
+      "";
 
     amountSelect.innerHTML = `
       <option value="" disabled selected>
@@ -506,33 +1208,51 @@ causeSelect.addEventListener(
       </option>
     `;
 
-    // =============================
-    // CHECK PRODUCT
-    // =============================
+    amountSelect.disabled =
+      true;
 
     if (
-      !selectedCause ||
-      !priceMap[selectedCause]
+      oneOffAmountInput
     ) {
 
-      amountSelect.disabled =
+      oneOffAmountInput.value =
+        "";
+
+      oneOffAmountInput.disabled =
         true;
+
+      oneOffAmountInput.style.display =
+        "none";
+
+    }
+
+    if (
+      !selectedCause
+    ) {
 
       return;
 
     }
 
-    // =============================
-    // GET PRODUCT PRICES
-    // =============================
-
     const prices =
-      priceMap[selectedCause];
+      monthlyPriceMap[
+        selectedCause
+      ];
 
-    // =============================
-    // SORT PRICES
-    // LOWEST → HIGHEST
-    // =============================
+    if (
+      !prices ||
+      Object.keys(prices).length === 0
+    ) {
+
+      amountSelect.innerHTML = `
+        <option value="" disabled selected>
+          No amounts available
+        </option>
+      `;
+
+      return;
+
+    }
 
     Object.keys(prices)
       .sort(
@@ -560,12 +1280,222 @@ causeSelect.addEventListener(
         }
       );
 
-    // =============================
-    // ENABLE AMOUNT DROPDOWN
-    // =============================
-
     amountSelect.disabled =
       false;
+
+    return;
+
+  }
+
+  // =============================
+  // ONE-OFF
+  // =============================
+
+  amountSelect.style.display =
+    "none";
+
+  amountSelect.disabled =
+    true;
+
+  if (
+    !oneOffAmountInput
+  ) {
+
+    createOneOffAmountInput();
+
+  }
+
+  oneOffAmountInput.style.display =
+    "";
+
+  oneOffAmountInput.disabled =
+    true;
+
+  oneOffAmountInput.value =
+    "";
+
+  oneOffAmountInput.classList.remove(
+    "input-error"
+  );
+
+  oneOffAmountInput.removeAttribute(
+    "min"
+  );
+
+  oneOffAmountInput.removeAttribute(
+    "max"
+  );
+
+  oneOffAmountInput.removeAttribute(
+    "title"
+  );
+
+  oneOffAmountInput.dataset.priceId =
+    "";
+
+  if (
+    !selectedCause
+  ) {
+
+    return;
+
+  }
+
+  const price =
+    getOneOffPriceConfig(
+      selectedCause
+    );
+
+  if (
+    !price
+  ) {
+
+    oneOffAmountInput.placeholder =
+      "No amount available";
+
+    return;
+
+  }
+
+  // =============================
+  // CUSTOM STRIPE PRICE
+  // =============================
+
+  if (
+    price.customUnitAmount
+  ) {
+
+    const custom =
+      price.customUnitAmount;
+
+    const minimum =
+      Number(
+        custom.minimum
+      ) / 100;
+
+    const maximum =
+      Number(
+        custom.maximum
+      ) / 100;
+
+    const preset =
+      custom.preset !== null &&
+      custom.preset !== undefined
+        ? Number(
+            custom.preset
+          ) / 100
+        : minimum;
+
+    oneOffAmountInput.min =
+      minimum;
+
+    oneOffAmountInput.max =
+      maximum;
+
+    oneOffAmountInput.step =
+      "0.01";
+
+    oneOffAmountInput.value =
+      preset.toFixed(2);
+
+    oneOffAmountInput.placeholder =
+      "Enter amount";
+
+    oneOffAmountInput.disabled =
+      false;
+
+    oneOffAmountInput.dataset.priceId =
+      price.id;
+
+    oneOffAmountInput.title =
+      `Minimum £${minimum.toFixed(
+        2
+      )} · Maximum £${maximum.toFixed(
+        2
+      )}`;
+
+    console.log(
+      "One-off custom amount configuration:",
+      {
+        priceId: price.id,
+        minimum,
+        maximum,
+        preset
+      }
+    );
+
+    return;
+
+  }
+
+  // =============================
+  // FIXED ONE-OFF PRICE
+  // =============================
+
+  if (
+    price.amount !== null &&
+    price.amount !== undefined
+  ) {
+
+    const fixedAmount =
+      Number(
+        price.amount
+      ) / 100;
+
+    oneOffAmountInput.min =
+      fixedAmount;
+
+    oneOffAmountInput.max =
+      fixedAmount;
+
+    oneOffAmountInput.step =
+      "0.01";
+
+    oneOffAmountInput.value =
+      fixedAmount.toFixed(2);
+
+    oneOffAmountInput.disabled =
+      true;
+
+    oneOffAmountInput.dataset.priceId =
+      price.id;
+
+    oneOffAmountInput.title =
+      `Fixed donation amount: £${fixedAmount.toFixed(
+        2
+      )}`;
+
+    return;
+
+  }
+
+  // =============================
+  // INVALID PRICE
+  // =============================
+
+  oneOffAmountInput.placeholder =
+    "No valid amount available";
+
+}
+
+// =============================
+// CAUSE CHANGE
+// =============================
+
+causeSelect.addEventListener(
+  "change",
+  () => {
+
+    const selectedCause =
+      causeSelect.value;
+
+    resetStripe(false);
+
+    populateAmountControl(
+      selectedCause
+    );
+
+    updatePaymentMethodUI();
 
   }
 );
@@ -575,6 +1505,7 @@ causeSelect.addEventListener(
 // =============================
 
 updatePaymentMethodUI();
+updateDonationFrequencyUI();
 
 // =============================
 // GET DONATION DATA
@@ -620,24 +1551,66 @@ function getDonationData() {
   const cause =
     causeSelect.value;
 
-  const donationAmount =
-    Number(
-      amountSelect.value
-    );
+  const frequency =
+    getDonationFrequency();
+
+  let donationAmount =
+    0;
+
+  let selectedPriceId =
+    null;
+
+  // =============================
+  // MONTHLY
+  // =============================
+
+  if (
+    frequency === "monthly"
+  ) {
+
+    donationAmount =
+      Number(
+        amountSelect.value
+      );
+
+    selectedPriceId =
+      monthlyPriceMap?.[
+        cause
+      ]?.[
+        donationAmount
+      ];
+
+  }
+
+  // =============================
+  // ONE-OFF
+  // =============================
+
+  else {
+
+    donationAmount =
+      Number(
+        oneOffAmountInput
+          ? oneOffAmountInput.value
+          : 0
+      );
+
+    const oneOffPrice =
+      getOneOffPriceConfig(
+        cause
+      );
+
+    selectedPriceId =
+      oneOffPrice
+        ? oneOffPrice.id
+        : null;
+
+  }
 
   const startDate =
     Number(
       startDateSelect.value
     );
-
-  // =============================
-  // GET DYNAMIC STRIPE PRICE ID
-  // =============================
-
-  const selectedPriceId =
-    priceMap?.[cause]?.[
-      donationAmount
-    ];
 
   return {
 
@@ -672,15 +1645,19 @@ function getDonationData() {
 }
 
 // =============================
-// SETUP CARD PAYMENT
+// SETUP MONTHLY CARD PAYMENT
 // =============================
 
-async function setupStripe() {
+async function setupMonthlyStripe() {
 
   try {
 
     const donationData =
       getDonationData();
+
+    console.log(
+      "Preparing monthly Card donation..."
+    );
 
     console.log(
       "Selected cause:",
@@ -698,37 +1675,25 @@ async function setupStripe() {
     );
 
     console.log(
-      "Selected price ID:",
+      "Selected monthly price ID:",
       donationData.priceId
     );
-
-    // =============================
-    // SAFETY CHECK
-    // =============================
 
     if (!donationData.priceId) {
 
       console.error(
-        "No price ID found for selection."
+        "No monthly price ID found for selection."
       );
 
       alert(
-        "We could not find the selected donation price."
+        "We could not find the selected monthly donation price."
       );
 
       return false;
 
     }
 
-    // =============================
-    // RESET OLD STRIPE ELEMENTS
-    // =============================
-
     resetStripe();
-
-    // =============================
-    // SEND TO BACKEND
-    // =============================
 
     const res =
       await fetch(
@@ -784,7 +1749,7 @@ async function setupStripe() {
       await res.json();
 
     console.log(
-      "Backend response:",
+      "Monthly backend response:",
       data
     );
 
@@ -803,10 +1768,6 @@ async function setupStripe() {
       return false;
 
     }
-
-    // =============================
-    // MONTHLY PAYMENT SETUP
-    // =============================
 
     if (
       data.mode !== "setup"
@@ -832,13 +1793,13 @@ async function setupStripe() {
         "Missing SetupIntent client secret."
       );
 
+      alert(
+        "Stripe did not return a payment setup key."
+      );
+
       return false;
 
     }
-
-    // =============================
-    // SAVE MONTHLY SETUP DATA
-    // =============================
 
     monthlySetupData = {
 
@@ -856,43 +1817,15 @@ async function setupStripe() {
 
     };
 
-    // =============================
-    // CREATE STRIPE ELEMENTS
-    // =============================
-
-    elements =
-      stripe.elements({
-
-        clientSecret:
-          data.setupClientSecret
-
-      });
-
-    paymentElement =
-      elements.create(
-        "payment"
-      );
-
-    paymentElement.mount(
-      "#payment-element"
+    await mountPaymentElement(
+      data.setupClientSecret
     );
-
-    // =============================
-    // PAYMENT READY
-    // =============================
-
-    paymentReady =
-      true;
 
     submitButton.textContent =
       "Start Monthly Donation";
 
     console.log(
-      "Payment Element mounted for monthly setup."
-    );
-
-    console.log(
-      "Payment form is ready."
+      "Monthly payment form is ready."
     );
 
     return true;
@@ -900,12 +1833,244 @@ async function setupStripe() {
   } catch (err) {
 
     console.error(
-      "Stripe setup error:",
+      "Monthly Stripe setup error:",
       err
     );
 
+    resetStripe(false);
+
     alert(
-      "Something went wrong while setting up the payment."
+      "Something went wrong while setting up the monthly payment."
+    );
+
+    return false;
+
+  }
+
+}
+
+// =============================
+// SETUP ONE-OFF CARD PAYMENT
+// =============================
+
+async function setupOneOffStripe() {
+
+  try {
+
+    const donationData =
+      getDonationData();
+
+    console.log(
+      "Preparing one-off Card donation..."
+    );
+
+    console.log(
+      "Selected cause:",
+      donationData.donationCause
+    );
+
+    console.log(
+      "Selected amount:",
+      donationData.donationAmount
+    );
+
+    console.log(
+      "Selected one-off price ID:",
+      donationData.priceId
+    );
+
+    if (!donationData.priceId) {
+
+      console.error(
+        "No one-off price ID found for selection."
+      );
+
+      alert(
+        "We could not find the selected one-off donation price."
+      );
+
+      return false;
+
+    }
+
+    if (
+      !Number.isFinite(
+        donationData.donationAmount
+      ) ||
+      donationData.donationAmount <= 0
+    ) {
+
+      alert(
+        "Please enter a valid one-off donation amount."
+      );
+
+      if (
+        oneOffAmountInput
+      ) {
+
+        oneOffAmountInput.classList.add(
+          "input-error"
+        );
+
+        oneOffAmountInput.focus();
+
+      }
+
+      return false;
+
+    }
+
+    resetStripe();
+
+    const res =
+      await fetch(
+        `${API_URL}/create-one-off-payment`,
+        {
+
+          method:
+            "POST",
+
+          headers: {
+
+            "Content-Type":
+              "application/json"
+
+          },
+
+          body:
+            JSON.stringify({
+
+              email:
+                donationData.email,
+
+              priceId:
+                donationData.priceId,
+
+              donationAmount:
+                donationData.donationAmount,
+
+              giftAid:
+                donationData.giftAid,
+
+              fullName:
+                donationData.fullName,
+
+              phone:
+                donationData.phone,
+
+              address:
+                donationData.address,
+
+              postcode:
+                donationData.postcode,
+
+              country:
+                donationData.country,
+
+              donationCause:
+                donationData.donationCause
+
+            })
+
+        }
+      );
+
+    const data =
+      await res.json();
+
+    console.log(
+      "One-off backend response:",
+      data
+    );
+
+    if (!res.ok) {
+
+      console.error(
+        "One-off backend error:",
+        data.error
+      );
+
+      alert(
+        data.error ||
+        "Something went wrong while preparing your one-off donation."
+      );
+
+      return false;
+
+    }
+
+    if (
+      data.mode !== "payment"
+    ) {
+
+      console.error(
+        "Unexpected Stripe payment response."
+      );
+
+      alert(
+        "Something went wrong while preparing your one-off donation."
+      );
+
+      return false;
+
+    }
+
+    if (
+      !data.clientSecret
+    ) {
+
+      console.error(
+        "Missing PaymentIntent client secret."
+      );
+
+      alert(
+        "Stripe did not return a payment key."
+      );
+
+      return false;
+
+    }
+
+    oneOffPaymentData = {
+
+      paymentIntentId:
+        data.paymentIntentId,
+
+      customerId:
+        data.customerId,
+
+      priceId:
+        data.priceId,
+
+      amount:
+        data.amount
+
+    };
+
+    await mountPaymentElement(
+      data.clientSecret
+    );
+
+    submitButton.textContent =
+      "Make One-off Donation";
+
+    console.log(
+      "One-off payment form is ready."
+    );
+
+    return true;
+
+  } catch (err) {
+
+    console.error(
+      "One-off Stripe setup error:",
+      err
+    );
+
+    resetStripe(false);
+
+    alert(
+      "Something went wrong while setting up the one-off payment."
     );
 
     return false;
@@ -957,7 +2122,7 @@ async function createMonthlySubscription() {
         error.message
       );
 
-      return;
+      return false;
 
     }
 
@@ -969,10 +2134,6 @@ async function createMonthlySubscription() {
       "SetupIntent:",
       setupIntent
     );
-
-    // =============================
-    // CREATE MONTHLY SUBSCRIPTION
-    // =============================
 
     console.log(
       "Creating monthly subscription..."
@@ -1033,7 +2194,7 @@ async function createMonthlySubscription() {
         "Could not create your monthly donation."
       );
 
-      return;
+      return false;
 
     }
 
@@ -1048,21 +2209,28 @@ async function createMonthlySubscription() {
     );
 
     // =============================
-    // SUCCESS
+    // SUCCESS MODAL
     // =============================
 
-    alert(
-      "Your monthly donation has been set up successfully 🎉"
+    const donationData =
+      getDonationData();
+
+    const amount =
+      Number(
+        donationData.donationAmount
+      ).toFixed(2);
+
+    const cause =
+      donationData.donationCause;
+
+    showSuccessModal(
+      "Subscription successful",
+      `Your £${amount} monthly donation to ${cause} has been set up successfully.`
     );
 
-    // =============================
-    // REDIRECT BACK TO FORM
-    // =============================
-    // Reload the donation form so the
-    // next donor starts with a fresh page.
+    resetDonationForm();
 
-    window.location.href =
-      "/";
+    return true;
 
   } catch (err) {
 
@@ -1074,6 +2242,184 @@ async function createMonthlySubscription() {
     alert(
       "Something went wrong while creating your monthly donation."
     );
+
+    return false;
+
+  }
+
+}
+
+// =============================
+// CREATE ONE-OFF CARD PAYMENT
+// =============================
+
+async function createOneOffPayment() {
+
+  try {
+
+    console.log(
+      "Confirming one-off Card payment..."
+    );
+
+    if (
+      !elements ||
+      !paymentElement ||
+      !paymentReady
+    ) {
+
+      console.error(
+        "Stripe Payment Element is not ready.",
+        {
+          elements,
+          paymentElement,
+          paymentReady
+        }
+      );
+
+      alert(
+        "The payment form is not ready yet. Please wait a moment and try again."
+      );
+
+      return false;
+
+    }
+
+    const {
+      error,
+      paymentIntent
+    } =
+      await stripe.confirmPayment({
+
+        elements,
+
+        confirmParams: {
+
+          return_url:
+            window.location.href
+
+        },
+
+        redirect:
+          "if_required"
+
+      });
+
+    if (error) {
+
+      console.error(
+        "One-off payment error:",
+        error.message
+      );
+
+      alert(
+        error.message
+      );
+
+      return false;
+
+    }
+
+    console.log(
+      "One-off PaymentIntent:",
+      paymentIntent
+    );
+
+    // =============================
+    // SUCCESS
+    // =============================
+
+    if (
+      paymentIntent &&
+      paymentIntent.status ===
+        "succeeded"
+    ) {
+
+      console.log(
+        "One-off payment succeeded:",
+        paymentIntent.id
+      );
+
+      const donationData =
+        getDonationData();
+
+      const amount =
+        Number(
+          donationData.donationAmount
+        ).toFixed(2);
+
+      const cause =
+        donationData.donationCause;
+
+      showSuccessModal(
+        "Donation successful",
+        `Your £${amount} one-off donation to ${cause} has been processed successfully.`
+      );
+
+      resetDonationForm();
+
+      return true;
+
+    }
+
+    // =============================
+    // PAYMENT REQUIRES ACTION
+    // =============================
+
+    if (
+      paymentIntent &&
+      (
+        paymentIntent.status ===
+          "processing" ||
+        paymentIntent.status ===
+          "requires_action"
+      )
+    ) {
+
+      console.log(
+        "One-off payment is still processing:",
+        paymentIntent.status
+      );
+
+      alert(
+        "Your payment is being processed. Please check the payment status before making another donation."
+      );
+
+      window.location.href =
+        "/";
+
+      return true;
+
+    }
+
+    // =============================
+    // UNEXPECTED STATUS
+    // =============================
+
+    console.error(
+      "Unexpected PaymentIntent status:",
+      paymentIntent
+        ? paymentIntent.status
+        : "unknown"
+    );
+
+    alert(
+      "We could not confirm the payment status. Please check Stripe before attempting the donation again."
+    );
+
+    return false;
+
+  } catch (err) {
+
+    console.error(
+      "One-off payment request failed:",
+      err
+    );
+
+    alert(
+      "Something went wrong while processing the one-off donation."
+    );
+
+    return false;
 
   }
 
@@ -1099,10 +2445,6 @@ async function createBacsCheckout() {
       donationData
     );
 
-    // =============================
-    // PRICE CHECK
-    // =============================
-
     if (!donationData.priceId) {
 
       console.error(
@@ -1113,13 +2455,9 @@ async function createBacsCheckout() {
         "We could not find the selected donation price."
       );
 
-      return;
+      return false;
 
     }
-
-    // =============================
-    // CALL BACS BACKEND
-    // =============================
 
     const response =
       await fetch(
@@ -1197,13 +2535,9 @@ async function createBacsCheckout() {
         "Something went wrong while preparing Bacs Direct Debit."
       );
 
-      return;
+      return false;
 
     }
-
-    // =============================
-    // REDIRECT TO STRIPE
-    // =============================
 
     if (!data.url) {
 
@@ -1215,7 +2549,7 @@ async function createBacsCheckout() {
         "We could not open the Bacs payment page."
       );
 
-      return;
+      return false;
 
     }
 
@@ -1225,6 +2559,8 @@ async function createBacsCheckout() {
 
     window.location.href =
       data.url;
+
+    return true;
 
   } catch (err) {
 
@@ -1236,6 +2572,8 @@ async function createBacsCheckout() {
     alert(
       "Something went wrong while preparing Bacs Direct Debit."
     );
+
+    return false;
 
   }
 
@@ -1269,15 +2607,23 @@ form.addEventListener(
     }
 
     // =============================
-    // CURRENT PAYMENT METHOD
+    // CURRENT SETTINGS
     // =============================
 
     const paymentMethod =
       getPaymentMethod();
 
+    const donationFrequency =
+      getDonationFrequency();
+
     console.log(
       "Selected payment method:",
       paymentMethod
+    );
+
+    console.log(
+      "Selected donation frequency:",
+      donationFrequency
     );
 
     // =================================================
@@ -1295,13 +2641,35 @@ form.addEventListener(
       submitButton.textContent =
         "Processing...";
 
-      await createMonthlySubscription();
+      if (
+        donationFrequency === "one_off"
+      ) {
 
-      submitButton.disabled =
-        false;
+        await createOneOffPayment();
 
-      submitButton.textContent =
-        "Start Monthly Donation";
+      } else {
+
+        await createMonthlySubscription();
+
+      }
+
+      /*
+       * The success functions reset
+       * the button themselves.
+       *
+       * If payment failed, restore
+       * the correct button state.
+       */
+
+      if (paymentReady) {
+
+        submitButton.disabled =
+          false;
+
+        submitButton.textContent =
+          getReadyButtonText();
+
+      }
 
       return;
 
@@ -1318,6 +2686,16 @@ form.addEventListener(
       );
 
     });
+
+    if (
+      oneOffAmountInput
+    ) {
+
+      oneOffAmountInput.classList.remove(
+        "input-error"
+      );
+
+    }
 
     // =================================================
     // REQUIRED INPUTS
@@ -1369,10 +2747,162 @@ form.addEventListener(
     }
 
     // =================================================
+    // DONATION CAUSE
+    // =================================================
+
+    if (
+      !causeSelect.value
+    ) {
+
+      causeSelect.classList.add(
+        "input-error"
+      );
+
+      valid =
+        false;
+
+    }
+
+    // =================================================
+    // DONATION AMOUNT
+    // =================================================
+
+    if (
+      donationFrequency ===
+      "one_off"
+    ) {
+
+      const enteredAmount =
+        Number(
+          oneOffAmountInput
+            ? oneOffAmountInput.value
+            : 0
+        );
+
+      const oneOffPrice =
+        getOneOffPriceConfig(
+          causeSelect.value
+        );
+
+      if (
+        !Number.isFinite(
+          enteredAmount
+        ) ||
+        enteredAmount <= 0
+      ) {
+
+        if (
+          oneOffAmountInput
+        ) {
+
+          oneOffAmountInput.classList.add(
+            "input-error"
+          );
+
+        }
+
+        valid =
+          false;
+
+      } else if (
+        oneOffPrice &&
+        oneOffPrice.customUnitAmount
+      ) {
+
+        const minimum =
+          Number(
+            oneOffPrice.customUnitAmount.minimum
+          ) / 100;
+
+        const maximum =
+          Number(
+            oneOffPrice.customUnitAmount.maximum
+          ) / 100;
+
+        if (
+          enteredAmount < minimum ||
+          enteredAmount > maximum
+        ) {
+
+          if (
+            oneOffAmountInput
+          ) {
+
+            oneOffAmountInput.classList.add(
+              "input-error"
+            );
+
+          }
+
+          alert(
+            `Please enter an amount between £${minimum.toFixed(
+              2
+            )} and £${maximum.toFixed(
+              2
+            )}.`
+          );
+
+          valid =
+            false;
+
+        }
+
+      } else if (
+        oneOffPrice &&
+        oneOffPrice.amount !== null &&
+        oneOffPrice.amount !== undefined
+      ) {
+
+        const fixedAmount =
+          Number(
+            oneOffPrice.amount
+          ) / 100;
+
+        if (
+          enteredAmount !==
+          fixedAmount
+        ) {
+
+          if (
+            oneOffAmountInput
+          ) {
+
+            oneOffAmountInput.classList.add(
+              "input-error"
+            );
+
+          }
+
+          valid =
+            false;
+
+        }
+
+      }
+
+    } else {
+
+      if (
+        !amountSelect.value
+      ) {
+
+        amountSelect.classList.add(
+          "input-error"
+        );
+
+        valid =
+          false;
+
+      }
+
+    }
+
+    // =================================================
     // START DATE
     // =================================================
 
     if (
+      donationFrequency === "monthly" &&
       !startDateSelect.value
     ) {
 
@@ -1407,6 +2937,18 @@ form.addEventListener(
       paymentMethod === "bacs_debit"
     ) {
 
+      if (
+        donationFrequency !== "monthly"
+      ) {
+
+        alert(
+          "One-off Bacs payments are not available yet. Please select Card for a one-off donation."
+        );
+
+        return;
+
+      }
+
       submitButton.disabled =
         true;
 
@@ -1435,8 +2977,32 @@ form.addEventListener(
     submitButton.textContent =
       "Preparing Payment...";
 
-    const ready =
-      await setupStripe();
+    let ready =
+      false;
+
+    // =================================================
+    // MONTHLY CARD
+    // =================================================
+
+    if (
+      donationFrequency === "monthly"
+    ) {
+
+      ready =
+        await setupMonthlyStripe();
+
+    }
+
+    // =================================================
+    // ONE-OFF CARD
+    // =================================================
+
+    else {
+
+      ready =
+        await setupOneOffStripe();
+
+    }
 
     submitButton.disabled =
       false;
@@ -1444,7 +3010,7 @@ form.addEventListener(
     if (!ready) {
 
       console.error(
-        "Stripe setup failed."
+        "Stripe payment setup failed."
       );
 
       submitButton.textContent =
@@ -1463,8 +3029,6 @@ form.addEventListener(
 
 // =============================
 // LOAD STRIPE DONATION OPTIONS
-// =============================
-// Run once when the page loads.
 // =============================
 
 loadDonationOptions();

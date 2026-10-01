@@ -127,6 +127,147 @@ body {
 
 
 /* =========================
+   DONATION FREQUENCY
+========================= */
+
+.donation-frequency {
+  display: grid;
+
+  grid-template-columns: 1fr 1fr;
+
+  gap: 8px;
+
+  padding: 5px;
+
+  margin-bottom: 16px;
+
+  background: #f4f4f4;
+
+  border: 1px solid #e1e1e1;
+
+  border-radius: 14px;
+}
+
+
+/* =========================
+   FREQUENCY OPTION
+========================= */
+
+.frequency-option {
+  position: relative;
+
+  display: flex;
+
+  align-items: center;
+
+  justify-content: center;
+
+  min-height: 44px;
+
+  margin: 0;
+
+  padding: 10px 12px;
+
+  border-radius: 10px;
+
+  background: transparent;
+
+  color: #555;
+
+  font-size: 0.85rem;
+
+  font-weight: 600;
+
+  cursor: pointer;
+
+  transition:
+    background 0.2s ease,
+    color 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.2s ease;
+}
+
+
+/* =========================
+   HIDE DEFAULT RADIO
+========================= */
+
+.frequency-option input[type="radio"] {
+  position: absolute;
+
+  opacity: 0;
+
+  pointer-events: none;
+}
+
+
+/* =========================
+   FREQUENCY HOVER
+========================= */
+
+.frequency-option:hover {
+  background: rgba(248, 198, 24, 0.12);
+
+  color: #222;
+}
+
+
+/* =========================
+   SELECTED FREQUENCY
+========================= */
+
+.frequency-option:has(
+  input[type="radio"]:checked
+) {
+  background: #fff;
+
+  color: #222;
+
+  box-shadow:
+    0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+
+/* =========================
+   SELECTED INDICATOR
+========================= */
+
+.frequency-option:has(
+  input[type="radio"]:checked
+)::before {
+  content: "";
+
+  width: 8px;
+
+  height: 8px;
+
+  flex-shrink: 0;
+
+  margin-right: 8px;
+
+  border-radius: 50%;
+
+  background: #f8c618;
+
+  box-shadow:
+    0 0 0 3px rgba(248, 198, 24, 0.18);
+}
+
+
+/* =========================
+   KEYBOARD FOCUS
+========================= */
+
+.frequency-option:has(
+  input[type="radio"]:focus-visible
+) {
+  outline: 2px solid #f8c618;
+
+  outline-offset: 2px;
+}
+
+
+/* =========================
    DROPDOWNS
 ========================= */
 
@@ -278,6 +419,41 @@ input:focus {
 
   box-shadow:
     0 0 0 3px rgba(248, 198, 24, 0.12);
+}
+
+
+/* =========================
+   ONE-OFF AMOUNT
+========================= */
+
+#one-off-amount {
+  width: 100%;
+
+  margin-top: 6px;
+
+  margin-bottom: 16px;
+
+  padding: 12px 14px;
+
+  border: 1px solid #ddd;
+
+  border-radius: 8px;
+
+  background: #fff;
+
+  font-size: 15px;
+
+  color: #333;
+}
+
+
+#one-off-amount:focus {
+  outline: none;
+
+  border-color: #4a90e2;
+
+  box-shadow:
+    0 0 0 3px rgba(74, 144, 226, 0.15);
 }
 
 
@@ -518,16 +694,240 @@ button {
 
   transition:
     transform 0.2s ease,
-    box-shadow 0.2s ease;
+    box-shadow 0.2s ease,
+    opacity 0.2s ease;
 }
 
 
-button:hover,
-button:active {
+button:hover:not(:disabled) {
   transform: translateY(-2px);
 
   box-shadow:
     0 5px 12px rgba(0, 0, 0, 0.12);
+}
+
+
+button:active:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+
+button:disabled {
+  cursor: not-allowed;
+
+  opacity: 0.65;
+}
+
+
+/* =========================
+   SUCCESS MODAL
+========================= */
+
+.success-modal {
+  position: fixed;
+
+  inset: 0;
+
+  z-index: 9999;
+
+  display: flex;
+
+  align-items: center;
+  justify-content: center;
+
+  padding: 20px;
+}
+
+
+.success-modal[hidden] {
+  display: none;
+}
+
+
+/* =========================
+   MODAL OVERLAY
+========================= */
+
+.success-modal-overlay {
+  position: absolute;
+
+  inset: 0;
+
+  background: rgba(0, 0, 0, 0.45);
+
+  backdrop-filter: blur(3px);
+}
+
+
+/* =========================
+   MODAL CARD
+========================= */
+
+.success-modal-card {
+  position: relative;
+
+  z-index: 1;
+
+  width: 100%;
+
+  max-width: 390px;
+
+  padding: 32px 28px 28px;
+
+  background: #fff;
+
+  border-radius: 22px;
+
+  text-align: center;
+
+  box-shadow:
+    0 20px 60px rgba(0, 0, 0, 0.18);
+
+  animation:
+    successModalIn 0.25s ease;
+}
+
+
+/* =========================
+   SUCCESS ICON
+========================= */
+
+.success-modal-icon {
+  width: 58px;
+
+  height: 58px;
+
+  margin: 0 auto 18px;
+
+  display: flex;
+
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 50%;
+
+  background: #eaf8ed;
+
+  color: #2f9e44;
+
+  font-size: 1.6rem;
+
+  font-weight: bold;
+}
+
+
+/* =========================
+   MODAL TITLE
+========================= */
+
+.success-modal-card h2 {
+  margin-bottom: 8px;
+
+  font-size: 1.35rem;
+
+  color: #222;
+}
+
+
+/* =========================
+   MODAL MESSAGE
+========================= */
+
+.success-modal-card p {
+  margin: 0 auto 24px;
+
+  max-width: 300px;
+
+  color: #666;
+
+  font-size: 0.9rem;
+
+  line-height: 1.5;
+}
+
+
+/* =========================
+   CLOSE BUTTON
+========================= */
+
+.success-modal-close {
+  position: absolute;
+
+  top: 12px;
+  right: 12px;
+
+  width: 32px;
+
+  height: 32px;
+
+  padding: 0;
+
+  display: flex;
+
+  align-items: center;
+  justify-content: center;
+
+  background: transparent;
+
+  color: #777;
+
+  font-size: 1.4rem;
+
+  font-weight: normal;
+
+  border-radius: 8px;
+
+  box-shadow: none;
+}
+
+
+.success-modal-close:hover,
+.success-modal-close:active {
+  background: #f4f4f4;
+
+  color: #222;
+
+  transform: none;
+
+  box-shadow: none;
+}
+
+
+/* =========================
+   DONE BUTTON
+========================= */
+
+.success-modal-done {
+  width: 100%;
+
+  background: #f8c618;
+
+  color: #222;
+}
+
+
+/* =========================
+   MODAL ANIMATION
+========================= */
+
+@keyframes successModalIn {
+
+  from {
+    opacity: 0;
+
+    transform:
+      scale(0.94)
+      translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+
+    transform:
+      scale(1)
+      translateY(0);
+  }
+
 }
 
 
@@ -599,6 +999,18 @@ button:active {
 
   .donation-summary {
     padding: 18px;
+  }
+
+
+  .success-modal {
+    padding: 16px;
+  }
+
+
+  .success-modal-card {
+    padding: 30px 22px 22px;
+
+    border-radius: 20px;
   }
 
 }

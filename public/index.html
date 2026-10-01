@@ -22,6 +22,47 @@
 
       <div class="summary-card">
 
+        <!-- =========================
+             DONATION FREQUENCY
+        ========================== -->
+
+        <p class="label">
+          Donation Frequency
+        </p>
+
+        <div class="donation-frequency">
+
+          <label class="frequency-option">
+
+            <input
+              type="radio"
+              name="donation-frequency"
+              value="monthly"
+              checked
+            />
+
+            <span>
+              Monthly
+            </span>
+
+          </label>
+
+          <label class="frequency-option">
+
+            <input
+              type="radio"
+              name="donation-frequency"
+              value="one_off"
+            />
+
+            <span>
+              One-off
+            </span>
+
+          </label>
+
+        </div>
+
         <p class="label">Product</p>
 
         <select
@@ -48,29 +89,37 @@
 
         </select>
 
-        <p class="label">
-          Preferred Start Date
-        </p>
+        <!-- =========================
+             PREFERRED START DATE
+        ========================== -->
 
-        <select id="start-date">
+        <div id="start-date-container">
 
-          <option value="">
-            Select a start date
-          </option>
+          <p class="label">
+            Preferred Start Date
+          </p>
 
-          <option value="1">
-            1st of the month
-          </option>
+          <select id="start-date">
 
-          <option value="15">
-            15th of the month
-          </option>
+            <option value="">
+              Select a start date
+            </option>
 
-          <option value="26">
-            26th of the month
-          </option>
+            <option value="1">
+              1st of the month
+            </option>
 
-        </select>
+            <option value="15">
+              15th of the month
+            </option>
+
+            <option value="26">
+              26th of the month
+            </option>
+
+          </select>
+
+        </div>
 
         <p class="small-text">
           Your monthly donation helps provide urgent aid to families in need.
@@ -247,6 +296,58 @@
     </section>
 
   </main>
+
+
+  <!-- =========================
+       SUCCESS MODAL
+  ========================== -->
+
+  <div
+    id="success-modal"
+    class="success-modal"
+    hidden
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="success-modal-title"
+  >
+
+    <div class="success-modal-overlay"></div>
+
+    <div class="success-modal-card">
+
+      <button
+        type="button"
+        id="success-modal-close"
+        class="success-modal-close"
+        aria-label="Close"
+      >
+        ×
+      </button>
+
+      <div class="success-modal-icon">
+        ✓
+      </div>
+
+      <h2 id="success-modal-title">
+        Donation successful
+      </h2>
+
+      <p id="success-modal-message">
+        Your donation has been processed successfully.
+      </p>
+
+      <button
+        type="button"
+        id="success-modal-done"
+        class="success-modal-done"
+      >
+        Done
+      </button>
+
+    </div>
+
+  </div>
+
 
   <script src="main.js"></script>
 
