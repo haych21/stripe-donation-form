@@ -13,6 +13,7 @@ const stripe = require("stripe")(
 
 const app = express();
 
+
 /* =========================================================
    CORS
    ========================================================= */
@@ -86,7 +87,7 @@ app.post(
 
       /* =====================================================
          CHECKOUT SESSION COMPLETED
-         
+
          This is used for the Bacs setup Checkout.
          Stripe has collected the mandate/bank details.
          We then retrieve the SetupIntent and create
@@ -281,7 +282,7 @@ app.post(
 
             /* =================================================
                PREVENT DUPLICATE SUBSCRIPTIONS
-               
+
                Stripe can retry webhook events.
                Before creating another subscription,
                check whether this SetupIntent has already
@@ -550,6 +551,7 @@ app.use(
   express.static("public")
 );
 
+
 /* =========================================================
    GET ACTIVE DONATION PRODUCTS + MONTHLY PRICES
 
@@ -566,16 +568,6 @@ app.get(
   async (req, res) => {
 
     try {
-
-      /*
-       * Get all active recurring GBP prices.
-       *
-       * We only want:
-       * - active prices
-       * - GBP
-       * - recurring prices
-       * - monthly prices
-       */
 
       const prices =
         await stripe.prices.list({
@@ -595,10 +587,6 @@ app.get(
         });
 
 
-      /*
-       * Group prices by Product.
-       */
-
       const products = {};
 
 
@@ -607,11 +595,6 @@ app.get(
         const product =
           price.product;
 
-
-        /*
-         * Make sure Stripe returned
-         * an actual Product object.
-         */
 
         if (
           !product ||
@@ -623,11 +606,6 @@ app.get(
         }
 
 
-        /*
-         * Only active Products should
-         * appear on the donation form.
-         */
-
         if (
           !product.active
         ) {
@@ -636,11 +614,6 @@ app.get(
 
         }
 
-
-        /*
-         * Only monthly recurring prices
-         * belong on this form.
-         */
 
         if (
           !price.recurring ||
@@ -652,11 +625,6 @@ app.get(
 
         }
 
-
-        /*
-         * Create the Product entry
-         * if it doesn't exist yet.
-         */
 
         if (
           !products[product.id]
@@ -677,10 +645,6 @@ app.get(
         }
 
 
-        /*
-         * Add the Stripe Price.
-         */
-
         products[product.id].prices.push({
 
           id:
@@ -700,20 +664,11 @@ app.get(
       });
 
 
-      /*
-       * Convert object into array.
-       */
-
       const productList =
         Object.values(
           products
         );
 
-
-      /*
-       * Sort prices from cheapest
-       * to most expensive.
-       */
 
       productList.forEach(product => {
 
@@ -724,11 +679,6 @@ app.get(
 
       });
 
-
-      /*
-       * Don't show Products that have
-       * no active monthly prices.
-       */
 
       const filteredProducts =
         productList.filter(
@@ -1353,9 +1303,6 @@ app.post(
 
       /* =====================================================
          NORMALISE COUNTRY
-         
-         Stripe expects a two-letter country code.
-         For Bacs the customer must be in GB.
          ===================================================== */
 
       let stripeCountry =
@@ -1466,10 +1413,6 @@ app.post(
 
       /* =====================================================
          CREATE STRIPE CHECKOUT SESSION
-         
-         IMPORTANT:
-         We use SETUP mode because Bacs requires the
-         customer to create/authorise a mandate first.
          ===================================================== */
 
       const session =
@@ -1483,12 +1426,6 @@ app.post(
 
           currency:
             "gbp",
-
-          /*
-           * Stripe dynamically determines which payment
-           * methods are eligible, while this filters the
-           * session to Bacs specifically.
-           */
 
           allowed_payment_method_types: [
             "bacs_debit"
@@ -1571,10 +1508,18 @@ app.post(
 
           },
 
+
+          /* =================================================
+             BACS SUCCESS REDIRECT
+
+             Stripe sends the staff member back to the
+             donation form after successful Bacs setup.
+             ================================================= */
+
           success_url:
             `${req.protocol}://${req.get(
               "host"
-            )}/bacs-success?session_id={CHECKOUT_SESSION_ID}`,
+            )}/`,
 
           cancel_url:
             `${req.protocol}://${req.get(
@@ -1630,122 +1575,17 @@ app.post(
 
 /* =========================================================
    BACS SUCCESS PAGE
+
+   Kept as a fallback route.
+   The normal successful Bacs flow now redirects
+   directly to "/".
    ========================================================= */
 
 app.get(
   "/bacs-success",
   (req, res) => {
 
-    res.send(`
-
-      <!DOCTYPE html>
-
-      <html lang="en">
-
-      <head>
-
-        <meta charset="UTF-8">
-
-        <meta
-          name="viewport"
-          content="width=device-width, initial-scale=1.0"
-        >
-
-        <title>
-          Donation Setup Complete
-        </title>
-
-        <style>
-
-          body {
-
-            margin: 0;
-
-            min-height: 100vh;
-
-            display: flex;
-
-            align-items: center;
-
-            justify-content: center;
-
-            background: #f8f8f6;
-
-            font-family:
-              Arial,
-              sans-serif;
-
-          }
-
-          .card {
-
-            width: min(
-              90%,
-              520px
-            );
-
-            padding: 40px;
-
-            background: white;
-
-            border-radius: 20px;
-
-            text-align: center;
-
-            box-shadow:
-              0 10px 30px
-              rgba(0,0,0,0.08);
-
-          }
-
-          h1 {
-
-            margin-bottom: 15px;
-
-          }
-
-          p {
-
-            line-height: 1.6;
-
-            color: #666;
-
-          }
-
-        </style>
-
-      </head>
-
-      <body>
-
-        <div class="card">
-
-          <h1>
-            Thank you 🎉
-          </h1>
-
-          <p>
-            Your Bacs Direct Debit details
-            have been submitted successfully.
-          </p>
-
-          <p>
-            Your monthly donation is now
-            being set up.
-          </p>
-
-          <p>
-            Bacs payments can take several
-            business days to process.
-          </p>
-
-        </div>
-
-      </body>
-
-      </html>
-
-    `);
+    res.redirect("/");
 
   }
 );

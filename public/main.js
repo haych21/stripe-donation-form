@@ -364,7 +364,7 @@ async function loadDonationOptions() {
     // =============================
 
     causeSelect.innerHTML = `
-      <option value="" disabled selected>
+      <option value="" disabled>
         Select a cause
       </option>
     `;
@@ -375,7 +375,7 @@ async function loadDonationOptions() {
     // =============================
 
     amountSelect.innerHTML = `
-      <option value="" disabled selected>
+      <option value="" disabled>
         Select an amount
       </option>
     `;
@@ -437,6 +437,23 @@ async function loadDonationOptions() {
 
       }
     );
+
+
+    // =============================
+    // IMPORTANT:
+    // FORCE BOTH DROPDOWNS BACK
+    // TO THEIR PLACEHOLDER OPTIONS
+    // =============================
+    // This is done AFTER Stripe products
+    // have been added so the browser
+    // cannot restore the previous
+    // selected values on refresh.
+
+    causeSelect.selectedIndex =
+      0;
+
+    amountSelect.selectedIndex =
+      0;
 
 
     // =============================
@@ -1162,6 +1179,16 @@ async function createMonthlySubscription() {
     alert(
       "Your monthly donation has been set up successfully 🎉"
     );
+
+
+    // =============================
+    // REDIRECT BACK TO FORM
+    // =============================
+    // Reload the donation form so the
+    // next donor starts with a fresh page.
+
+    window.location.href =
+      "/";
 
 
   } catch (err) {
